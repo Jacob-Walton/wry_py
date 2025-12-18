@@ -2728,6 +2728,8 @@ dependencies = [
 name = "wry_py"
 version = "0.1.0"
 dependencies = [
+ "gtk",
+ "libc",
  "parking_lot",
  "pyo3",
  "serde",

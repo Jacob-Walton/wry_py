@@ -1,0 +1,9 @@
+recursive-include src/wry_py *.pyi
+include src/wry_py/py.typed
+include README.md
+include pyproject.toml
+prune target
+prune .github
+prune examples
+global-exclude __pycache__
+global-exclude *.pyc

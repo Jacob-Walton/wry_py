@@ -4,10 +4,22 @@ use parking_lot::Mutex;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tao::event::{Event, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy};
-use tao::window::WindowBuilder;
 use wry::WebViewBuilder;
+use tao::event_loop::EventLoopProxy;
+
+#[cfg(target_os = "linux")]
+use {
+    gtk::prelude::*,
+    gtk::{Box as GtkBox, Orientation},
+    wry::WebViewBuilderExtUnix,
+};
+
+#[cfg(not(target_os = "linux"))]
+use {
+    tao::event::{Event, WindowEvent},
+    tao::event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
+    tao::window::WindowBuilder,
+};
 
 /// Custom events we can send to the event loop
 #[derive(Debug, Clone)]
@@ -21,6 +33,8 @@ pub enum UserEvent {
 struct WebViewState {
     callbacks: HashMap<String, Py<PyAny>>,
     pending_html: Option<String>,
+    pending_title: Option<String>,
+    should_close: bool,
 }
 
 impl WebViewState {
@@ -28,6 +42,8 @@ impl WebViewState {
         WebViewState {
             callbacks: HashMap::new(),
             pending_html: None,
+            pending_title: None,
+            should_close: false,
         }
     }
 }
@@ -46,8 +62,15 @@ pub struct UiWindow {
 
 #[pymethods]
 impl UiWindow {
+    /// Create a new window.
+    ///
+    /// Args:
+    ///     title: Window title. Defaults to "Python App".
+    ///     width: Window width in pixels. Defaults to 800.
+    ///     height: Window height in pixels. Defaults to 600.
+    ///     background_color: Background color as hex string (e.g., "#1a1a1a"). Defaults to dark gray.
     #[new]
-    #[pyo3(signature = (title = None, width = None, height = None, background_color = None))]
+    #[pyo3(signature = (title = None, width = None, height = None, background_color = None), text_signature = "(title=None, width=None, height=None, background_color=None)")]
     fn new(
         title: Option<String>,
         width: Option<u32>,
@@ -69,7 +92,13 @@ impl UiWindow {
         }
     }
 
-    /// Set the root element and update the webview
+    /// Set the root element and update the webview.
+    ///
+    /// This updates what's displayed in the window. Can be called before or after run().
+    ///
+    /// Args:
+    ///     element: The root Element to display.
+    #[pyo3(text_signature = "(self, element)")]
     fn set_root(&self, element: &Element) -> PyResult<()> {
         // Register callbacks from element
         let html = {
@@ -94,15 +123,27 @@ impl UiWindow {
         Ok(())
     }
 
-    /// Set window title
+    /// Change the window title.
+    ///
+    /// Args:
+    ///     title: The new title to display in the window header.
+    #[pyo3(text_signature = "(self, title)")]
     fn set_title(&self, title: String) -> PyResult<()> {
+        // Store in state for polling (used on Linux)
+        self.state.lock().pending_title = Some(title.clone());
+
+        // Also send via event proxy if available (used on other platforms)
         if let Some(proxy) = self.event_proxy.lock().as_ref() {
             let _ = proxy.send_event(UserEvent::SetTitle(title));
         }
         Ok(())
     }
 
-    /// Run the window event loop (blocking)
+    /// Show the window and start the event loop.
+    ///
+    /// This is blocking and will run until the window is closed. Call set_root() before
+    /// or after this to update what's displayed.
+    #[pyo3(text_signature = "(self)")]
     fn run(&self, py: Python) -> PyResult<()> {
         let title = self.title.clone();
         let width = self.width;
@@ -120,15 +161,24 @@ impl UiWindow {
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
     }
 
-    /// Close the window
+    /// Close the window and stop the event loop.
+    #[pyo3(text_signature = "(self)")]
     fn close(&self) -> PyResult<()> {
+        // Set close flag in state for polling (used on Linux)
+        self.state.lock().should_close = true;
+
+        // Also send via event proxy if available (used on other platforms)
         if let Some(proxy) = self.event_proxy.lock().as_ref() {
             let _ = proxy.send_event(UserEvent::Close);
         }
         Ok(())
     }
 
-    /// Check if window is running
+    /// Check if the window is currently running.
+    ///
+    /// Returns:
+    ///     True if the event loop is active, False otherwise.
+    #[pyo3(text_signature = "(self)")]
     fn is_running(&self) -> bool {
         *self.is_running.lock()
     }
@@ -141,6 +191,201 @@ impl UiWindow {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn run_event_loop(
+    title: String,
+    width: u32,
+    height: u32,
+    state: Arc<Mutex<WebViewState>>,
+    event_proxy_holder: Arc<Mutex<Option<EventLoopProxy<UserEvent>>>>,
+    is_running: Arc<Mutex<bool>>,
+    background_color: (u8, u8, u8, u8),
+) -> Result<(), String> {
+    use gtk::glib;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use std::sync::mpsc;
+
+    gtk::init().map_err(|e| format!("Failed to initialize GTK: {:?}", e))?;
+
+    // Create a channel for internal events
+    let (event_tx, event_rx) = mpsc::channel::<UserEvent>();
+    let event_rx = Rc::new(RefCell::new(event_rx));
+
+    let state_clone = state.clone();
+
+    // Create GTK window
+    let window = gtk::Window::new(gtk::WindowType::Toplevel);
+    window.set_title(&title);
+    window.set_default_size(width as i32, height as i32);
+
+    // Create a box to hold the webview
+    let gtk_box = GtkBox::new(Orientation::Vertical, 0);
+    gtk_box.set_vexpand(true);
+    gtk_box.set_hexpand(true);
+
+    // Get initial HTML
+    let initial_content = {
+        let state = state_clone.lock();
+        state.pending_html.clone()
+    };
+
+    let initial_html = get_initial_html(initial_content.as_deref(), background_color);
+
+    // Create IPC handler for callbacks
+    let state_for_ipc = state_clone.clone();
+    let ipc_handler = move |request: wry::http::Request<String>| {
+        let body = request.body();
+        if let Ok(event) = serde_json::from_str::<IpcEvent>(body) {
+            if event.event_type == "click" {
+                if let Some(ref callback_id) = event.callback_id {
+                    let state_for_cb = state_for_ipc.clone();
+                    let callback_id = callback_id.clone();
+                    #[allow(deprecated)]
+                    Python::with_gil(|py| {
+                        let callback = {
+                            let state = state_for_cb.lock();
+                            state.callbacks.get(&callback_id).map(|cb| cb.clone_ref(py))
+                        };
+
+                        if let Some(callback) = callback {
+                            std::thread::spawn(move || {
+                                #[allow(deprecated)]
+                                Python::with_gil(|py| {
+                                    if let Err(e) = callback.call0(py) {
+                                        eprintln!("Callback error: {:?}", e);
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
+            }
+
+            if event.event_type == "input" {
+                if let (Some(callback_id), Some(value)) = (&event.callback_id, event.value) {
+                    let state_for_cb = state_for_ipc.clone();
+                    let callback_id = callback_id.clone();
+                    #[allow(deprecated)]
+                    Python::with_gil(|py| {
+                        let callback = {
+                            let state = state_for_cb.lock();
+                            state.callbacks.get(&callback_id).map(|cb| cb.clone_ref(py))
+                        };
+
+                        if let Some(callback) = callback {
+                            std::thread::spawn(move || {
+                                #[allow(deprecated)]
+                                Python::with_gil(|py| {
+                                    if let Err(e) = callback.call1(py, (value,)) {
+                                        eprintln!("Input callback error: {:?}", e);
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }
+            }
+        }
+    };
+
+    // Build webview with GTK
+    let webview = WebViewBuilder::new()
+        .with_html(initial_html)
+        .with_ipc_handler(ipc_handler)
+        .with_background_color(background_color)
+        .build_gtk(&gtk_box)
+        .map_err(|e| format!("Failed to build webview: {}", e))?;
+
+    let webview = Rc::new(webview);
+
+    window.add(&gtk_box);
+
+    // Handle window close
+    let is_running_for_close = is_running.clone();
+    window.connect_delete_event(move |_, _| {
+        *is_running_for_close.lock() = false;
+        gtk::main_quit();
+        glib::Propagation::Stop
+    });
+
+    window.show_all();
+
+    *is_running.lock() = true;
+
+    // Set up a polling loop to check for events from Python
+    let webview_for_poll = webview.clone();
+    let window_for_poll = window.clone();
+    let is_running_for_poll = is_running.clone();
+    glib::timeout_add_local(std::time::Duration::from_millis(16), move || {
+        // Check for events
+        while let Ok(event) = event_rx.borrow().try_recv() {
+            match event {
+                UserEvent::UpdateRoot(html) => {
+                    let js = format!(
+                        "document.getElementById('root').innerHTML = {};",
+                        serde_json::to_string(&html).unwrap()
+                    );
+                    let _ = webview_for_poll.evaluate_script(&js);
+                }
+                UserEvent::SetTitle(title) => {
+                    window_for_poll.set_title(&title);
+                }
+                UserEvent::Close => {
+                    *is_running_for_poll.lock() = false;
+                    gtk::main_quit();
+                    return glib::ControlFlow::Break;
+                }
+            }
+        }
+        glib::ControlFlow::Continue
+    });
+
+    // Handle Ctrl+C (SIGINT) to close the window gracefully
+    let is_running_for_sigint = is_running.clone();
+    let window_for_sigint = window.clone();
+    glib::unix_signal_add_local(libc::SIGINT, move || {
+        *is_running_for_sigint.lock() = false;
+        window_for_sigint.close();
+        gtk::main_quit();
+        glib::ControlFlow::Break
+    });
+
+    // Poll the state for pending changes from Python
+    // This is needed because EventLoopProxy doesn't work with GTK
+    let state_for_poll = state.clone();
+    glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+        let mut state = state_for_poll.lock();
+
+        // Check for pending HTML update
+        if let Some(html) = state.pending_html.take() {
+            let _ = event_tx.send(UserEvent::UpdateRoot(html));
+        }
+
+        // Check for pending title update
+        if let Some(title) = state.pending_title.take() {
+            let _ = event_tx.send(UserEvent::SetTitle(title));
+        }
+
+        // Check for close request
+        if state.should_close {
+            state.should_close = false;
+            let _ = event_tx.send(UserEvent::Close);
+        }
+
+        glib::ControlFlow::Continue
+    });
+
+    gtk::main();
+    *is_running.lock() = false;
+
+    // Clear the event proxy
+    *event_proxy_holder.lock() = None;
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
 fn run_event_loop(
     title: String,
     width: u32,

@@ -22,3 +22,7 @@ classifiers = [
 Repository = "https://github.com/Jacob-Walton/wry_py"
 Issues = "https://github.com/Jacob-Walton/wry_py/issues"
 
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+features = ["pyo3/extension-module"]
+module-name = "wry_py"
