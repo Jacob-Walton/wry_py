@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 #[pymodule]
 fn wry_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Classes
+    m.add_class::<window::UiWindow>()?;
     m.add_class::<elements::Element>()?;
     m.add_class::<elements::ElementBuilder>()?;
 
