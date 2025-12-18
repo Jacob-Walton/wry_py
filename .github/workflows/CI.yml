@@ -1,23 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
-  windows:
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
-      - name: Build custom manylinux image
-        run: |
-          docker build -t local/manylinux-glib:2_34 .github/docker/manylinux-with-glib
-
-      - name: Build wheels inside custom manylinux image
-        run: |
-          mkdir -p dist
-          docker run --rm -v "${{ github.workspace }}":/io -w /io local/manylinux-glib:2_34 \
-            /bin/bash -lc "python3 -m pip install --upgrade pip && python3 -m pip install maturin && maturin build --release --out /io/dist"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-linux-x86_64
-          path: dist
-
   windows:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -90,7 +85,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, windows, macos, sdist]
+    needs: [windows, macos, sdist]
     permissions:
       # Use to sign the release artifacts
       id-token: write
