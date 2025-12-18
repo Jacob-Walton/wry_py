@@ -14,21 +14,23 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: x86_64
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
-          manylinux: manylinux_2_28
-          before-script-linux: |
-            dnf install -y gtk3-devel webkit2gtk3-devel libsoup-devel
+          manylinux: 'off'
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
