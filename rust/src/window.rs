@@ -7,14 +7,14 @@ use std::sync::Arc;
 use wry::WebViewBuilder;
 use tao::event_loop::EventLoopProxy;
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "gtk-backend"))]
 use {
     gtk::prelude::*,
     gtk::{Box as GtkBox, Orientation},
     wry::WebViewBuilderExtUnix,
 };
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(all(target_os = "linux", feature = "gtk-backend")))]
 use {
     tao::event::{Event, WindowEvent},
     tao::event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
@@ -191,7 +191,7 @@ impl UiWindow {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "gtk-backend"))]
 fn run_event_loop(
     title: String,
     width: u32,
@@ -385,7 +385,7 @@ fn run_event_loop(
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(all(target_os = "linux", feature = "gtk-backend")))]
 fn run_event_loop(
     title: String,
     width: u32,
@@ -396,7 +396,7 @@ fn run_event_loop(
     background_color: (u8, u8, u8, u8),
 ) -> Result<(), String> {
     // NVIDIA + Wayland workaround
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(feature = "gtk-backend")))]
     {
         if std::path::Path::new("/dev/dri").exists()
             && std::env::var("WAYLAND_DISPLAY").is_ok()
