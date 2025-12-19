@@ -1,19 +1,14 @@
-from dataclasses import dataclass, field
-
-from wry_py import UiWindow, div
+from wry_py import AppBase, div
 
 from .components import header, item_list, dialog
 
 
-@dataclass
-class TodoApp:
-    items: list[str] = field(default_factory=list)
-    window: UiWindow | None = None
-    show_add_dialog: bool = False
-    new_item_text: str = ""
-
-    def set_window(self, window: UiWindow):
-        self.window = window
+class TodoApp(AppBase):
+    def __init__(self) -> None:
+        super().__init__()
+        self.items: list[str] = []
+        self.show_add_dialog: bool = False
+        self.new_item_text: str = ""
 
     def open_add_dialog(self):
         self.show_add_dialog = True

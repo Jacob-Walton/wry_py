@@ -2,7 +2,6 @@
 
 - [ ] Implement partial updates instead of full root element replacement on each render.
 - [ ] Transitions rarely end up working.
-- [ ] Add a `.style()` method for allowing raw CSS styles to be applied to elements.
 - [ ] Give elements ids and classes for allowing Python to target them without lambdas.
 - [ ] Add a way to target elements in event handlers without using lambdas.
 - [ ] Add support for dropdowns, radio buttons, checkboxes, and other common form elements.
@@ -14,3 +13,4 @@
 - [ ] Add a way to do CSS grid layouts.
 - [ ] Add a way to do animations (e.g., keyframes).
 - [ ] Add a way to do drag-and-drop.
+- [ ] Add full testing solution.

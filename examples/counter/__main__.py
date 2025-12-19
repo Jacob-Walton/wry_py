@@ -1,18 +1,11 @@
-from dataclasses import dataclass
-from wry_py import UiWindow, div, text, button
+from wry_py import AppBase, UiWindow, div, text, button
 
 
-@dataclass
-class Counter:
-    # Current counter value
-    count: int = 0
-
-    # Window reference is injected after creation
-    window: UiWindow | None = None
-
-    def set_window(self, window: UiWindow):
-        # Store the window so we can update its root later
-        self.window = window
+class Counter(AppBase):
+    def __init__(self) -> None:
+        super().__init__()
+        # Current counter value
+        self.count: int = 0
 
     def increment(self):
         # Increase the counter and refresh the UI
@@ -80,15 +73,10 @@ def main():
         background_color="#FFFFFF",
     )
 
-    # Initialize counter state and attach the window
+    # Initialize counter state, attach the window and run the app
     counter = Counter()
     counter.set_window(window)
-
-    # Render the initial UI
-    counter.render()
-
-    # Start the event loop
-    window.run()
+    counter.run()
 
 
 if __name__ == "__main__":

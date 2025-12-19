@@ -54,6 +54,44 @@ UiWindow
 
       Returns ``True`` if the event loop is running.
 
+AppBase
+-------
+
+.. class:: AppBase()
+
+   Base class intended for application code. Subclass this in Python to
+   encapsulate application state and rendering logic. Typical usage is to
+   implement ``render()`` and call ``set_window()`` to attach a ``UiWindow``.
+
+   .. method:: set_window(window: UiWindow)
+
+      Attach a ``UiWindow`` instance to the app. The app can use
+      ``window.set_root(...)`` to update the UI.
+
+   .. method:: render()
+
+      Build and set the root element for the window. Subclasses MUST
+      implement this method and call ``self.window.set_root(...)`` with
+      the constructed ``Element``.
+
+   .. method:: run()
+
+      Convenience: render once and start the window event loop. Raises
+      ``RuntimeError`` if no window has been attached.
+
+   .. method:: set_root(element: Element)
+
+      Convenience wrapper to call ``window.set_root(element)``. Raises
+      ``RuntimeError`` if no window is attached.
+
+   .. method:: on_start()
+
+      Optional lifecycle hook invoked before `run()` begins.
+
+   .. method:: on_close()
+
+      Optional lifecycle hook invoked after the window closes.
+
 Element
 -------
 

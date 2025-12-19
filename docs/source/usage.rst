@@ -154,27 +154,46 @@ Todo List Example
 -----------------
 
 .. code-block:: python
+    
+   from wry_py import AppBase, UiWindow, div, text, button
 
-   from dataclasses import dataclass, field
-   from wry_py import UiWindow, div, text, button
-
-   @dataclass
-   class TodoApp:
-       items: list[str] = field(default_factory=list)
-       window: UiWindow | None = None
-
-       def set_window(self, window):
-           self.window = window
+   class TodoApp(AppBase):
+       def __init__(self):
+           super().__init__()
+           self.items: list[str] = []
 
        def add_item(self):
            self.items.append(f"Item {len(self.items) + 1}")
            self.render()
 
+       def remove_item(self, index: int):
+           if 0 <= index < len(self.items):
+               del self.items[index]
+               self.render()
+
        def render(self):
            item_list = div().v_flex().gap(4)
-           for item in self.items:
+           if not self.items:
                item_list = item_list.child_builder(
-                   text(item).padding(8).bg("#f7fafc")
+                   text("No items yet").text_color("#94a3b8").text_size(16)
+               )
+           for i, item in enumerate(self.items):
+               item_list = item_list.child_builder(
+                   div()
+                   .h_flex()
+                   .justify_between()
+                   .items_center()
+                   .padding(8)
+                   .bg("#f8fafc")
+                   .child_builder(text(item).text_color("#1e293b"))
+                   .child_builder(
+                       button("Remove")
+                       .padding(6, 12)
+                       .bg("#ef4444")
+                       .text_color("#fff")
+                       .rounded(4)
+                       .on_click(lambda idx=i: self.remove_item(idx))
+                   )
                )
 
            root = (
@@ -200,5 +219,4 @@ Todo List Example
    window = UiWindow(title="Todo", width=400, height=500)
    app = TodoApp()
    app.set_window(window)
-   app.render()
-   window.run()
+   app.run()

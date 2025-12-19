@@ -120,20 +120,18 @@ Rebuild the element tree and call ``set_root()`` again:
 Using Classes
 -------------
 
-For larger applications, encapsulate state in a class:
+For larger applications, subclass ``AppBase`` to encapsulate state and
+rendering logic. ``AppBase`` provides helpful helpers like ``set_window()``,
+``set_root()``, and ``run()``.
 
 .. code-block:: python
 
-   from dataclasses import dataclass
-   from wry_py import UiWindow, div, text, button
+   from wry_py import AppBase, UiWindow, div, text, button
 
-   @dataclass
-   class Counter:
-       count: int = 0
-       window: UiWindow | None = None
-
-       def set_window(self, window: UiWindow):
-           self.window = window
+   class Counter(AppBase):
+       def __init__(self):
+           super().__init__()
+           self.count = 0
 
        def increment(self):
            self.count += 1
@@ -174,7 +172,6 @@ For larger applications, encapsulate state in a class:
                self.window.set_root(root)
 
    window = UiWindow(title="Counter", width=400, height=300)
-   counter = Counter()
-   counter.set_window(window)
-   counter.render()
-   window.run()
+   app = Counter()
+   app.set_window(window)
+   app.run()
