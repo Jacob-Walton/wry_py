@@ -41,3 +41,9 @@ Python bindings for Wry and Tao, for building desktop applications with webviews
    :caption: Reference
 
    api
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Planned 
+   
+   planned
