@@ -2,7 +2,6 @@ use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
 use std::collections::HashMap;
 use std::sync::Mutex;
 

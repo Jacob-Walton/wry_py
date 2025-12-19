@@ -24,7 +24,8 @@ use {
 /// Custom events we can send to the event loop
 #[derive(Debug, Clone)]
 pub enum UserEvent {
-    UpdateRoot(String), // HTML content
+    UpdateRoot(String),            // HTML content for full root replacement
+    UpdateElement(String, String), // (element_id, html) for partial update
     SetTitle(String),
     Close,
 }
@@ -34,6 +35,7 @@ struct WebViewState {
     callbacks: HashMap<String, Py<PyAny>>,
     pending_html: Option<String>,
     pending_title: Option<String>,
+    pending_element_updates: Vec<(String, String)>, // (id, html) pairs
     should_close: bool,
 }
 
@@ -43,6 +45,7 @@ impl WebViewState {
             callbacks: HashMap::new(),
             pending_html: None,
             pending_title: None,
+            pending_element_updates: Vec::new(),
             should_close: false,
         }
     }
@@ -136,6 +139,39 @@ impl UiWindow {
         if let Some(proxy) = self.event_proxy.lock().as_ref() {
             let _ = proxy.send_event(UserEvent::SetTitle(title));
         }
+        Ok(())
+    }
+
+    /// Update a single element by its ID without replacing the entire root.
+    ///
+    /// This is more efficient than set_root() when only a small part of the UI changes.
+    /// The element must have an id set via the id() builder method.
+    ///
+    /// Args:
+    ///     element_id: The ID of the element to update (set via id()).
+    ///     element: The new Element to replace the existing one.
+    #[pyo3(text_signature = "(self, element_id, element)")]
+    fn update_element(&self, element_id: String, element: &Element) -> PyResult<()> {
+        // Register callbacks from element
+        let html = {
+            let mut state = self.state.lock();
+            for (id, callback) in element.collect_callbacks() {
+                state.callbacks.insert(id, callback);
+            }
+
+            // Render element to HTML
+            let html = render_to_html(&element.def);
+
+            // Store as pending for Linux polling
+            state.pending_element_updates.push((element_id.clone(), html.clone()));
+            html
+        };
+
+        // Send update to webview if already running
+        if let Some(proxy) = self.event_proxy.lock().as_ref() {
+            let _ = proxy.send_event(UserEvent::UpdateElement(element_id, html));
+        }
+
         Ok(())
     }
 
@@ -263,7 +299,7 @@ fn run_event_loop(
                 }
             }
 
-            if event.event_type == "input" {
+            if event.event_type == "input" || event.event_type == "change" {
                 if let (Some(callback_id), Some(value)) = (&event.callback_id, event.value) {
                     let state_for_cb = state_for_ipc.clone();
                     let callback_id = callback_id.clone();
@@ -279,7 +315,7 @@ fn run_event_loop(
                                 #[allow(deprecated)]
                                 Python::with_gil(|py| {
                                     if let Err(e) = callback.call1(py, (value,)) {
-                                        eprintln!("Input callback error: {:?}", e);
+                                        eprintln!("Input/change callback error: {:?}", e);
                                     }
                                 });
                             });
@@ -329,6 +365,14 @@ fn run_event_loop(
                     );
                     let _ = webview_for_poll.evaluate_script(&js);
                 }
+                UserEvent::UpdateElement(id, html) => {
+                    let js = format!(
+                        "updateElementById({}, {});",
+                        serde_json::to_string(&id).unwrap(),
+                        serde_json::to_string(&html).unwrap()
+                    );
+                    let _ = webview_for_poll.evaluate_script(&js);
+                }
                 UserEvent::SetTitle(title) => {
                     window_for_poll.set_title(&title);
                 }
@@ -361,6 +405,11 @@ fn run_event_loop(
         // Check for pending HTML update
         if let Some(html) = state.pending_html.take() {
             let _ = event_tx.send(UserEvent::UpdateRoot(html));
+        }
+
+        // Check for pending element updates
+        for (id, html) in state.pending_element_updates.drain(..) {
+            let _ = event_tx.send(UserEvent::UpdateElement(id, html));
         }
 
         // Check for pending title update
@@ -462,7 +511,7 @@ fn run_event_loop(
                 }
             }
 
-            if event.event_type == "input" {
+            if event.event_type == "input" || event.event_type == "change" {
                 if let (Some(callback_id), Some(value)) = (&event.callback_id, event.value) {
                     let state_for_cb = state_clone.clone();
                     let callback_id = callback_id.clone();
@@ -478,7 +527,7 @@ fn run_event_loop(
                                 #[allow(deprecated)]
                                 Python::with_gil(|py| {
                                     if let Err(e) = callback.call1(py, (value,)) {
-                                        eprintln!("Input callback error: {:?}", e);
+                                        eprintln!("Input/change callback error: {:?}", e);
                                     }
                                 });
                             });
@@ -520,6 +569,14 @@ fn run_event_loop(
                 UserEvent::UpdateRoot(html) => {
                     let js = format!(
                         "document.getElementById('root').innerHTML = {};",
+                        serde_json::to_string(&html).unwrap()
+                    );
+                    let _ = webview.evaluate_script(&js);
+                }
+                UserEvent::UpdateElement(id, html) => {
+                    let js = format!(
+                        "updateElementById({}, {});",
+                        serde_json::to_string(&id).unwrap(),
                         serde_json::to_string(&html).unwrap()
                     );
                     let _ = webview.evaluate_script(&js);
@@ -635,6 +692,23 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             window.ipc.postMessage(JSON.stringify({{
                 event_type: eventType,
                 callback_id: callbackId
+            }}));
+        }}
+
+        function updateElementById(elementId, html) {{
+            var el = document.getElementById(elementId);
+            if (el) {{
+                el.outerHTML = html;
+            }} else {{
+                console.warn('Element not found: ' + elementId);
+            }}
+        }}
+
+        function handleChange(callbackId, value) {{
+            window.ipc.postMessage(JSON.stringify({{
+                event_type: 'change',
+                callback_id: callbackId,
+                value: String(value)
             }}));
         }}
 

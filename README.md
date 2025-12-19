@@ -83,6 +83,12 @@ python -m examples.todo_list
 
 # Hover, focus, and transitions
 python -m examples.styles
+
+# Partial updates (efficient UI updates)
+python -m examples.partial_update
+
+# Multi-step form with all form elements
+python -m examples.form_demo
 ```
 
 ## Development

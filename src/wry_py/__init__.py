@@ -1,4 +1,4 @@
-from .wry_py import Element, ElementBuilder, UiWindow, div, text, button, input, image, AssetCatalog
+from .wry_py import Element, ElementBuilder, UiWindow, div, text, button, input, image, checkbox, radio, select, AssetCatalog
 from .app import AppBase
 
 __all__ = [
@@ -11,5 +11,8 @@ __all__ = [
     "button",
     "input",
     "image",
+    "checkbox",
+    "radio",
+    "select",
     "AssetCatalog",
 ]

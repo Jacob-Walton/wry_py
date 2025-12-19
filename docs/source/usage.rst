@@ -90,6 +90,44 @@ Image with hover scale:
    .transition_transform(0.3)
    .hover_scale(1.05)
 
+Partial Updates
+---------------
+
+Instead of replacing the entire UI with ``set_root()``, you can update
+individual elements using ``id()`` and ``update_element()``:
+
+.. code-block:: python
+
+   from wry_py import UiWindow, div, text, button
+
+   count = 0
+   window = UiWindow(title="Counter", width=400, height=300)
+
+   def make_counter():
+       return text(f"Count: {count}").id("counter").text_size(32).build()
+
+   def increment():
+       global count
+       count += 1
+       window.update_element("counter", make_counter())
+
+   root = (
+       div()
+       .size_full()
+       .v_flex()
+       .items_center()
+       .justify_center()
+       .gap(20)
+       .child(make_counter())
+       .child_builder(button("+").on_click(increment))
+       .build()
+   )
+
+   window.set_root(root)
+   window.run()
+
+This is more efficient when only a small part of the UI changes.
+
 Local images
 ------------
 

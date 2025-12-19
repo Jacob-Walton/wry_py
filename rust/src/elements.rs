@@ -3,17 +3,38 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+/// Option for select dropdowns.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SelectOption {
+    pub value: String,
+    pub label: String,
+}
+
 /// Serializable element definition sent to frontend.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ElementDef {
-    pub id: String,
+    pub id: String,              // Internal UUID
     pub element_type: String,
+
+    // User-facing identification
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>, // User-specified ID for targeting
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub class_names: Vec<String>, // User-specified CSS classes
 
     // Layout
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_width: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_width: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_height: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_height: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flex_direction: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -22,6 +43,16 @@ pub struct ElementDef {
     pub justify_content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gap: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flex_wrap: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flex_grow: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flex_shrink: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flex_basis: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub align_self: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub padding: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -162,6 +193,18 @@ pub struct ElementDef {
     pub value: Option<String>, // input value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub placeholder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_change: Option<String>, // callback ID for checkbox/radio/select changes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checked: Option<bool>, // for checkbox/radio
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub radio_group: Option<String>, // name attribute for radio buttons
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub options: Vec<SelectOption>, // for select dropdowns
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected: Option<String>, // selected option value for select
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>, // label text for checkbox/radio
 
     // Children
     #[serde(default)]
@@ -173,12 +216,23 @@ impl Default for ElementDef {
         Self {
             id: uuid(),
             element_type: "div".to_string(),
+            user_id: None,
+            class_names: Vec::new(),
             width: None,
             height: None,
+            min_width: None,
+            max_width: None,
+            min_height: None,
+            max_height: None,
             flex_direction: None,
             align_items: None,
             justify_content: None,
             gap: None,
+            flex_wrap: None,
+            flex_grow: None,
+            flex_shrink: None,
+            flex_basis: None,
+            align_self: None,
             padding: None,
             padding_top: None,
             padding_right: None,
@@ -240,6 +294,12 @@ impl Default for ElementDef {
             on_mouse_up: None,
             value: None,
             placeholder: None,
+            on_change: None,
+            checked: None,
+            radio_group: None,
+            options: Vec::new(),
+            selected: None,
+            label: None,
             children: Vec::new(),
         }
     }
@@ -395,6 +455,56 @@ impl ElementBuilder {
         }
     }
 
+    /// Create a checkbox element.
+    #[staticmethod]
+    #[pyo3(text_signature = "(label=None)")]
+    fn checkbox(label: Option<String>) -> Self {
+        let mut element = Element::new(Some("checkbox".to_string()));
+        element.def.label = label;
+        ElementBuilder { element }
+    }
+
+    /// Create a radio button element.
+    #[staticmethod]
+    #[pyo3(text_signature = "(label=None)")]
+    fn radio(label: Option<String>) -> Self {
+        let mut element = Element::new(Some("radio".to_string()));
+        element.def.label = label;
+        ElementBuilder { element }
+    }
+
+    /// Create a select dropdown element.
+    #[staticmethod]
+    #[pyo3(text_signature = "()")]
+    fn select() -> Self {
+        ElementBuilder {
+            element: Element::new(Some("select".to_string())),
+        }
+    }
+
+    // User-facing identification
+
+    /// Set a user-facing ID for targeting this element. Used for partial updates.
+    #[pyo3(text_signature = "($self, id)")]
+    fn id(mut slf: PyRefMut<'_, Self>, id: String) -> PyRefMut<'_, Self> {
+        slf.element.def.user_id = Some(id);
+        slf
+    }
+
+    /// Add a CSS class name to this element.
+    #[pyo3(text_signature = "($self, name)")]
+    fn class_name(mut slf: PyRefMut<'_, Self>, name: String) -> PyRefMut<'_, Self> {
+        slf.element.def.class_names.push(name);
+        slf
+    }
+
+    /// Add multiple CSS class names to this element.
+    #[pyo3(text_signature = "($self, names)")]
+    fn classes(mut slf: PyRefMut<'_, Self>, names: Vec<String>) -> PyRefMut<'_, Self> {
+        slf.element.def.class_names.extend(names);
+        slf
+    }
+
     /// Set width in pixels. Returns self for chaining.
     #[pyo3(text_signature = "($self, w)")]
     fn width(mut slf: PyRefMut<'_, Self>, w: f32) -> PyRefMut<'_, Self> {
@@ -421,6 +531,52 @@ impl ElementBuilder {
     #[pyo3(text_signature = "($self)")]
     fn size_full(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
         slf.element.def.size_full = true;
+        slf
+    }
+
+    /// Set width to 100%
+    #[pyo3(text_signature = "($self)")]
+    fn full_width(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.style = Some(
+            slf.element.def.style.clone().unwrap_or_default() + "width: 100%;"
+        );
+        slf
+    }
+
+    /// Set height to 100%
+    #[pyo3(text_signature = "($self)")]
+    fn full_height(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.style = Some(
+            slf.element.def.style.clone().unwrap_or_default() + "height: 100%;"
+        );
+        slf
+    }
+
+    /// Set minimum width in pixels
+    #[pyo3(text_signature = "($self, w)")]
+    fn min_width(mut slf: PyRefMut<'_, Self>, w: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.min_width = Some(w);
+        slf
+    }
+
+    /// Set maximum width in pixels
+    #[pyo3(text_signature = "($self, w)")]
+    fn max_width(mut slf: PyRefMut<'_, Self>, w: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.max_width = Some(w);
+        slf
+    }
+
+    /// Set minimum height in pixels
+    #[pyo3(text_signature = "($self, h)")]
+    fn min_height(mut slf: PyRefMut<'_, Self>, h: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.min_height = Some(h);
+        slf
+    }
+
+    /// Set maximum height in pixels
+    #[pyo3(text_signature = "($self, h)")]
+    fn max_height(mut slf: PyRefMut<'_, Self>, h: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.max_height = Some(h);
         slf
     }
 
@@ -463,6 +619,57 @@ impl ElementBuilder {
     #[pyo3(text_signature = "($self, g)")]
     fn gap(mut slf: PyRefMut<'_, Self>, g: f32) -> PyRefMut<'_, Self> {
         slf.element.def.gap = Some(g);
+        slf
+    }
+
+    /// Allow flex items to wrap to multiple lines
+    #[pyo3(text_signature = "($self)")]
+    fn flex_wrap(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.flex_wrap = Some("wrap".to_string());
+        slf
+    }
+
+    /// Prevent flex items from wrapping
+    #[pyo3(text_signature = "($self)")]
+    fn flex_nowrap(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.flex_wrap = Some("nowrap".to_string());
+        slf
+    }
+
+    /// Set flex grow factor
+    #[pyo3(text_signature = "($self, value)")]
+    fn flex_grow(mut slf: PyRefMut<'_, Self>, value: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.flex_grow = Some(value);
+        slf
+    }
+
+    /// Set flex shrink factor
+    #[pyo3(text_signature = "($self, value)")]
+    fn flex_shrink(mut slf: PyRefMut<'_, Self>, value: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.flex_shrink = Some(value);
+        slf
+    }
+
+    /// Set flex basis (initial size before growing/shrinking)
+    #[pyo3(text_signature = "($self, value)")]
+    fn flex_basis(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.flex_basis = Some(value);
+        slf
+    }
+
+    /// Shorthand: flex-grow: 1
+    #[pyo3(text_signature = "($self)")]
+    fn flex_1(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.flex_grow = Some(1.0);
+        slf.element.def.flex_shrink = Some(1.0);
+        slf.element.def.flex_basis = Some("0%".to_string());
+        slf
+    }
+
+    /// Align this item differently from siblings
+    #[pyo3(text_signature = "($self, value)")]
+    fn align_self(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.align_self = Some(value);
         slf
     }
 
@@ -986,6 +1193,44 @@ impl ElementBuilder {
         slf
     }
 
+    /// Set checked state for checkbox/radio
+    #[pyo3(text_signature = "($self, checked)")]
+    fn checked(mut slf: PyRefMut<'_, Self>, checked: bool) -> PyRefMut<'_, Self> {
+        slf.element.def.checked = Some(checked);
+        slf
+    }
+
+    /// Set radio button group name
+    #[pyo3(text_signature = "($self, name)")]
+    fn group(mut slf: PyRefMut<'_, Self>, name: String) -> PyRefMut<'_, Self> {
+        slf.element.def.radio_group = Some(name);
+        slf
+    }
+
+    /// Add an option to a select element
+    #[pyo3(text_signature = "($self, value, label)")]
+    fn option(mut slf: PyRefMut<'_, Self>, value: String, label: String) -> PyRefMut<'_, Self> {
+        slf.element.def.options.push(SelectOption { value, label });
+        slf
+    }
+
+    /// Set the selected option value for a select element
+    #[pyo3(text_signature = "($self, value)")]
+    fn selected(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.selected = Some(value);
+        slf
+    }
+
+    /// Register a callback for checkbox/radio/select change events. Callback receives the new value.
+    #[pyo3(text_signature = "($self, callback)")]
+    fn on_change(&mut self, callback: Py<PyAny>) -> Self {
+        let callback_id = uuid();
+        self.element.def.on_change = Some(callback_id.clone());
+        self.element.callback_ids.push(callback_id.clone());
+        store_callback(callback_id, callback);
+        self.clone()
+    }
+
     /// Register a callback function to run when the input value changes. Callback receives the new value as a string argument. Returns self for chaining.
     #[pyo3(text_signature = "($self, callback)")]
     fn on_input(&mut self, callback: Py<PyAny>) -> Self {
@@ -1081,4 +1326,25 @@ pub fn input() -> ElementBuilder {
 #[pyo3(text_signature = "(src)")]
 pub fn image(src: String) -> ElementBuilder {
     ElementBuilder::image(src)
+}
+
+/// Create a checkbox element. Shorthand for ElementBuilder.checkbox(label).
+#[pyfunction]
+#[pyo3(signature = (label = None), text_signature = "(label=None)")]
+pub fn checkbox(label: Option<String>) -> ElementBuilder {
+    ElementBuilder::checkbox(label)
+}
+
+/// Create a radio button element. Shorthand for ElementBuilder.radio(label).
+#[pyfunction]
+#[pyo3(signature = (label = None), text_signature = "(label=None)")]
+pub fn radio(label: Option<String>) -> ElementBuilder {
+    ElementBuilder::radio(label)
+}
+
+/// Create a select dropdown element. Shorthand for ElementBuilder.select().
+#[pyfunction]
+#[pyo3(text_signature = "()")]
+pub fn select() -> ElementBuilder {
+    ElementBuilder::select()
 }
