@@ -53,6 +53,49 @@ fn build_state_styles(el: &ElementDef) -> String {
     }
 }
 
+// Build border-radius style considering per-corner values and fallback to uniform radius
+fn build_border_radius_style(el: &ElementDef) -> Option<String> {
+    let tl = el.border_radius_top_left.or(el.border_radius);
+    let tr = el.border_radius_top_right.or(el.border_radius);
+    let br = el.border_radius_bottom_right.or(el.border_radius);
+    let bl = el.border_radius_bottom_left.or(el.border_radius);
+
+    if tl.is_none() && tr.is_none() && br.is_none() && bl.is_none() {
+        None
+    } else {
+        // Use 0.0 as fallback for unset corners
+        let tl_v = tl.unwrap_or(0.0);
+        let tr_v = tr.unwrap_or(tl_v);
+        let br_v = br.unwrap_or(tl_v);
+        let bl_v = bl.unwrap_or(tr_v);
+        Some(format!("border-radius: {}px {}px {}px {}px", tl_v, tr_v, br_v, bl_v))
+    }
+}
+
+// Build border side styles when per-side widths/colors are present
+fn build_border_sides_styles(el: &ElementDef) -> Vec<String> {
+    let mut out = Vec::new();
+
+    if let Some(w) = el.border_width_top {
+        let color = el.border_color_top.as_deref().or(el.border_color.as_deref()).unwrap_or("#333");
+        out.push(format!("border-top: {}px solid {}", w, color));
+    }
+    if let Some(w) = el.border_width_right {
+        let color = el.border_color_right.as_deref().or(el.border_color.as_deref()).unwrap_or("#333");
+        out.push(format!("border-right: {}px solid {}", w, color));
+    }
+    if let Some(w) = el.border_width_bottom {
+        let color = el.border_color_bottom.as_deref().or(el.border_color.as_deref()).unwrap_or("#333");
+        out.push(format!("border-bottom: {}px solid {}", w, color));
+    }
+    if let Some(w) = el.border_width_left {
+        let color = el.border_color_left.as_deref().or(el.border_color.as_deref()).unwrap_or("#333");
+        out.push(format!("border-left: {}px solid {}", w, color));
+    }
+
+    out
+}
+
 /// Build event handler attributes for an element
 fn build_event_attrs(el: &ElementDef) -> String {
     let mut attrs = String::new();
@@ -151,10 +194,32 @@ fn render_div(el: &ElementDef) -> String {
     if let Some(ref tc) = el.text_color {
         styles.push(format!("color: {}", tc));
     }
-    if let Some(br) = el.border_radius {
+    // Margin per-side overrides
+    if let Some(mt) = el.margin_top {
+        styles.push(format!("margin-top: {}px", mt));
+    }
+    if let Some(mr) = el.margin_right {
+        styles.push(format!("margin-right: {}px", mr));
+    }
+    if let Some(mb) = el.margin_bottom {
+        styles.push(format!("margin-bottom: {}px", mb));
+    }
+    if let Some(ml) = el.margin_left {
+        styles.push(format!("margin-left: {}px", ml));
+    }
+
+    // Border-radius: per-corner or uniform
+    if let Some(br_style) = build_border_radius_style(el) {
+        styles.push(br_style);
+    } else if let Some(br) = el.border_radius {
         styles.push(format!("border-radius: {}px", br));
     }
-    if let Some(bw) = el.border_width {
+
+    // Border sides: prefer per-side, otherwise use uniform border if present
+    let side_border_styles = build_border_sides_styles(el);
+    if !side_border_styles.is_empty() {
+        styles.extend(side_border_styles);
+    } else if let Some(bw) = el.border_width {
         let bc = el.border_color.as_deref().unwrap_or("#333");
         styles.push(format!("border: {}px solid {}", bw, bc));
     }
@@ -291,7 +356,10 @@ fn render_button(el: &ElementDef) -> String {
         styles.retain(|s| !s.starts_with("color:"));
         styles.push(format!("color: {}", tc));
     }
-    if let Some(br) = el.border_radius {
+    if let Some(br_style) = build_border_radius_style(el) {
+        styles.retain(|s| !s.starts_with("border-radius:"));
+        styles.push(br_style);
+    } else if let Some(br) = el.border_radius {
         styles.retain(|s| !s.starts_with("border-radius:"));
         styles.push(format!("border-radius: {}px", br));
     }
@@ -302,6 +370,20 @@ fn render_button(el: &ElementDef) -> String {
     if let Some(p) = el.padding {
         styles.retain(|s| !s.starts_with("padding:"));
         styles.push(format!("padding: {}px", p));
+    }
+
+    // Per-side border styles for inputs: override default border
+    let side_border_styles = build_border_sides_styles(el);
+    if !side_border_styles.is_empty() {
+        styles.retain(|s| !s.starts_with("border:"));
+        styles.extend(side_border_styles);
+    }
+
+    // Per-side border styles override button defaults
+    let side_border_styles = build_border_sides_styles(el);
+    if !side_border_styles.is_empty() {
+        styles.retain(|s| !s.starts_with("border:"));
+        styles.extend(side_border_styles);
     }
 
     // Append any raw CSS provided via ElementDef.style
@@ -339,7 +421,12 @@ fn render_image(el: &ElementDef) -> String {
         styles.push(format!("height: {}px", h));
     }
     if let Some(br) = el.border_radius {
-        styles.push(format!("border-radius: {}px", br));
+        // prefer per-corner if present
+        if let Some(br_style) = build_border_radius_style(el) {
+            styles.push(br_style);
+        } else {
+            styles.push(format!("border-radius: {}px", br));
+        }
     }
     if let Some(ref of) = el.object_fit {
         styles.push(format!("object-fit: {}", of));
@@ -352,6 +439,14 @@ fn render_image(el: &ElementDef) -> String {
     }
     if let Some(ref cursor) = el.cursor {
         styles.push(format!("cursor: {}", cursor));
+    }
+
+    // Per-side border styles for images
+    let side_border_styles = build_border_sides_styles(el);
+    if !side_border_styles.is_empty() {
+        // remove any generic border style if present
+        styles.retain(|s| !s.starts_with("border:"));
+        styles.extend(side_border_styles);
     }
 
     let style_attr = if styles.is_empty() {
@@ -404,8 +499,13 @@ fn render_input(el: &ElementDef) -> String {
         styles.push(format!("color: {}", tc));
     }
     if let Some(br) = el.border_radius {
-        styles.retain(|s| !s.starts_with("border-radius:"));
-        styles.push(format!("border-radius: {}px", br));
+        if let Some(br_style) = build_border_radius_style(el) {
+            styles.retain(|s| !s.starts_with("border-radius:"));
+            styles.push(br_style);
+        } else {
+            styles.retain(|s| !s.starts_with("border-radius:"));
+            styles.push(format!("border-radius: {}px", br));
+        }
     }
     if let Some(p) = el.padding {
         styles.retain(|s| !s.starts_with("padding:"));

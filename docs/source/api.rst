@@ -182,6 +182,30 @@ Padding
 
    Alias for ``margin()``.
 
+.. method:: mt(m: float)
+
+   Set top margin (pixels).
+
+.. method:: mr(m: float)
+
+   Set right margin (pixels).
+
+.. method:: mb(m: float)
+
+   Set bottom margin (pixels).
+
+.. method:: ml(m: float)
+
+   Set left margin (pixels).
+
+.. method:: mx(m: float)
+
+   Set horizontal margins (left and right) (pixels).
+
+.. method:: my(m: float)
+
+   Set vertical margins (top and bottom) (pixels).
+
 Styling
 ^^^^^^^
 
@@ -193,8 +217,38 @@ Styling
 .. method:: rounded(radius: float)
 
    Border radius in pixels.
+ 
+.. method:: rounded_tl(radius: float)
 
+   Set top-left corner radius (pixels).
+
+.. method:: rounded_tr(radius: float)
+
+   Set top-right corner radius (pixels).
+
+.. method:: rounded_br(radius: float)
+
+   Set bottom-right corner radius (pixels).
+
+.. method:: rounded_bl(radius: float)
+
+   Set bottom-left corner radius (pixels).
 .. method:: border(width: float, color: str)
+.. method:: border_top(width: float, color: str)
+
+   Set border on the top side (width in pixels and color).
+
+.. method:: border_right(width: float, color: str)
+
+   Set border on the right side (width in pixels and color).
+
+.. method:: border_bottom(width: float, color: str)
+
+   Set border on the bottom side (width in pixels and color).
+
+.. method:: border_left(width: float, color: str)
+
+   Set border on the left side (width in pixels and color).
 .. method:: b(color: str)
 
    1px solid border.

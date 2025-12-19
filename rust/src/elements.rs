@@ -33,6 +33,14 @@ pub struct ElementDef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub padding_left: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub margin_top: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub margin_right: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub margin_bottom: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub margin_left: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub margin: Option<f32>,
     pub size_full: bool,
 
@@ -44,9 +52,33 @@ pub struct ElementDef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_radius: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_radius_top_left: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_radius_top_right: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_radius_bottom_right: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_radius_bottom_left: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub border_width: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_width_top: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_width_right: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_width_bottom: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_width_left: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub border_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_color_top: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_color_right: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_color_bottom: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_color_left: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overflow: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -152,13 +184,29 @@ impl Default for ElementDef {
             padding_right: None,
             padding_bottom: None,
             padding_left: None,
+            margin_top: None,
+            margin_right: None,
+            margin_bottom: None,
+            margin_left: None,
             margin: None,
             size_full: false,
             background_color: None,
             text_color: None,
             border_radius: None,
+            border_radius_top_left: None,
+            border_radius_top_right: None,
+            border_radius_bottom_right: None,
+            border_radius_bottom_left: None,
             border_width: None,
+            border_width_top: None,
+            border_width_right: None,
+            border_width_bottom: None,
+            border_width_left: None,
             border_color: None,
+            border_color_top: None,
+            border_color_right: None,
+            border_color_bottom: None,
+            border_color_left: None,
             overflow: None,
             text_align: None,
             word_wrap: None,
@@ -510,6 +558,50 @@ impl ElementBuilder {
         slf
     }
 
+    /// Set margin top
+    #[pyo3(text_signature = "($self, m)")]
+    fn mt(mut slf: PyRefMut<'_, Self>, m: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.margin_top = Some(m);
+        slf
+    }
+
+    /// Set margin right
+    #[pyo3(text_signature = "($self, m)")]
+    fn mr(mut slf: PyRefMut<'_, Self>, m: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.margin_right = Some(m);
+        slf
+    }
+
+    /// Set margin bottom
+    #[pyo3(text_signature = "($self, m)")]
+    fn mb(mut slf: PyRefMut<'_, Self>, m: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.margin_bottom = Some(m);
+        slf
+    }
+
+    /// Set margin left
+    #[pyo3(text_signature = "($self, m)")]
+    fn ml(mut slf: PyRefMut<'_, Self>, m: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.margin_left = Some(m);
+        slf
+    }
+
+    /// Set margin x (left and right)
+    #[pyo3(text_signature = "($self, m)")]
+    fn mx(mut slf: PyRefMut<'_, Self>, m: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.margin_left = Some(m);
+        slf.element.def.margin_right = Some(m);
+        slf
+    }
+
+    /// Set margin y (top and bottom)
+    #[pyo3(text_signature = "($self, m)")]
+    fn my(mut slf: PyRefMut<'_, Self>, m: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.margin_top = Some(m);
+        slf.element.def.margin_bottom = Some(m);
+        slf
+    }
+
     /// Set background color. Accepts hex strings like "#ff0000" or CSS colors like "rgb(255,0,0)". Returns self for chaining.
     #[pyo3(text_signature = "($self, color)")]
     fn bg(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
@@ -531,11 +623,71 @@ impl ElementBuilder {
         slf
     }
 
+    /// Set border radius for top-left corner
+    #[pyo3(text_signature = "($self, radius)")]
+    fn rounded_tl(mut slf: PyRefMut<'_, Self>, radius: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.border_radius_top_left = Some(radius);
+        slf
+    }
+
+    /// Set border radius for top-right corner
+    #[pyo3(text_signature = "($self, radius)")]
+    fn rounded_tr(mut slf: PyRefMut<'_, Self>, radius: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.border_radius_top_right = Some(radius);
+        slf
+    }
+
+    /// Set border radius for bottom-right corner
+    #[pyo3(text_signature = "($self, radius)")]
+    fn rounded_br(mut slf: PyRefMut<'_, Self>, radius: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.border_radius_bottom_right = Some(radius);
+        slf
+    }
+
+    /// Set border radius for bottom-left corner
+    #[pyo3(text_signature = "($self, radius)")]
+    fn rounded_bl(mut slf: PyRefMut<'_, Self>, radius: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.border_radius_bottom_left = Some(radius);
+        slf
+    }
+
     /// Set border with width and color. Returns self for chaining.
     #[pyo3(text_signature = "($self, width, color)")]
     fn border(mut slf: PyRefMut<'_, Self>, width: f32, color: String) -> PyRefMut<'_, Self> {
         slf.element.def.border_width = Some(width);
         slf.element.def.border_color = Some(color);
+        slf
+    }
+
+    /// Set border on top side
+    #[pyo3(text_signature = "($self, width, color)")]
+    fn border_top(mut slf: PyRefMut<'_, Self>, width: f32, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.border_width_top = Some(width);
+        slf.element.def.border_color_top = Some(color);
+        slf
+    }
+
+    /// Set border on right side
+    #[pyo3(text_signature = "($self, width, color)")]
+    fn border_right(mut slf: PyRefMut<'_, Self>, width: f32, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.border_width_right = Some(width);
+        slf.element.def.border_color_right = Some(color);
+        slf
+    }
+
+    /// Set border on bottom side
+    #[pyo3(text_signature = "($self, width, color)")]
+    fn border_bottom(mut slf: PyRefMut<'_, Self>, width: f32, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.border_width_bottom = Some(width);
+        slf.element.def.border_color_bottom = Some(color);
+        slf
+    }
+
+    /// Set border on left side
+    #[pyo3(text_signature = "($self, width, color)")]
+    fn border_left(mut slf: PyRefMut<'_, Self>, width: f32, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.border_width_left = Some(width);
+        slf.element.def.border_color_left = Some(color);
         slf
     }
 

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "wry_py"
-version = "0.1.5"
+version = "0.1.6"
 description = "Python bindings for Wry/Tao"
 readme = "README.md"
 license = {text = "MIT"}
@@ -21,6 +21,7 @@ classifiers = [
 [project.urls]
 Repository = "https://github.com/Jacob-Walton/wry_py"
 Issues = "https://github.com/Jacob-Walton/wry_py/issues"
+Documentation = "https://jacob-walton.github.io/wry_py/"
 
 [tool.maturin]
 manifest-path = "rust/Cargo.toml"

@@ -40,6 +40,20 @@ Styling
    .rounded(12)
    .border(2, "#3182ce")
 
+Example: per-side margins, borders and per-corner radii
+
+.. code-block:: python
+
+    div()
+    .mt(8)
+    .mr(12)
+    .mb(8)
+    .ml(12)
+    .border_top(2, "#e53e3e")
+    .border_bottom(2, "#38a169")
+    .rounded_tl(16)
+    .rounded_br(8)
+
 Hover and Transitions
 ---------------------
 
