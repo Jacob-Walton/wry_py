@@ -1,4 +1,4 @@
-use crate::elements::{ElementDef, SelectOption};
+use crate::elements::ElementDef;
 use percent_encoding::utf8_percent_encode;
 use percent_encoding::NON_ALPHANUMERIC;
 use std::path::Path;

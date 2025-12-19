@@ -115,3 +115,50 @@ pub fn get_asset_data_uri(name: &str) -> Option<String> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_guess_mime_from_name() {
+        assert_eq!(guess_mime_from_name("foo.png"), "image/png");
+        assert_eq!(guess_mime_from_name("foo.JPG"), "image/jpeg");
+        assert_eq!(guess_mime_from_name("foo.svg"), "image/svg+xml");
+        assert_eq!(guess_mime_from_name("foo.webp"), "image/webp");
+        assert_eq!(guess_mime_from_name("foo.unknown"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_bytes_to_data_uri_content() {
+        let b = b"abc";
+        let s = bytes_to_data_uri("file.txt", b);
+        assert!(s.starts_with("data:application/octet-stream;base64,"));
+        // base64 for 'abc' is 'YWJj'
+        assert!(s.ends_with("YWJj"));
+    }
+
+    #[test]
+    fn test_store_and_get_asset_data_uri() {
+        // reset the global store
+        {
+            let mut s = ASSET_STORE.lock().unwrap();
+            *s = Some(HashMap::new());
+        }
+
+        let name = "images/logo.png".to_string();
+        let bytes = vec![137u8, 80, 78, 71, 13, 10, 26, 10]; // PNG header bytes
+        store_put(name.clone(), bytes.clone());
+
+        // lookup by full name
+        let uri = get_asset_data_uri("images/logo.png");
+        assert!(uri.is_some());
+        let uri = uri.unwrap();
+        assert!(uri.starts_with("data:image/png;base64,"));
+
+        // lookup by basename
+        let uri2 = get_asset_data_uri("logo.png");
+        assert!(uri2.is_some());
+    }
+}
