@@ -18,13 +18,52 @@ form_data = {
     "interests": [],
 }
 
+# Field-specific error messages for validation
+form_errors = {
+    "name": "",
+    "email": "",
+    "experience": "",
+    "country": "",
+}
 window = UiWindow(title="Form Demo", width=500, height=500)
 
+def validate_current_step():
+    """Validates the current step's data."""
+    errors = []
+    if step == 1:
+        # clear previous errors for step 1
+        form_errors["name"] = ""
+        form_errors["email"] = ""
+
+        if not form_data["name"].strip():
+            form_errors["name"] = "Name is required."
+            errors.append("name")
+        if "@" not in form_data["email"] or "." not in form_data["email"]:
+            form_errors["email"] = "A valid email is required."
+            errors.append("email")
+    elif step == 3:
+        # clear previous errors for step 3
+        form_errors["experience"] = ""
+        form_errors["country"] = ""
+
+        if not form_data["experience"]:
+            form_errors["experience"] = "Please select your experience level."
+            errors.append("experience")
+        if not form_data["country"]:
+            form_errors["country"] = "Please select your country."
+            errors.append("country")
+
+    if errors:
+        return {"message": "Please fix the highlighted errors."}
+
+    return {"message": "valid"}
 
 def next_step():
     global step
     if step < 4:
-        step += 1
+        validation_result = validate_current_step()
+        if validation_result["message"] == "valid":
+            step += 1
         render()
 
 
@@ -36,15 +75,13 @@ def prev_step():
 
 
 def submit_form():
-    print("Form submitted!")
-    print(form_data)
     global step
     step = 5
     render()
 
 
 def restart():
-    global step, form_data
+    global step, form_data, form_errors
     step = 1
     form_data = {
         "name": "",
@@ -55,6 +92,13 @@ def restart():
         "experience": "",
         "country": "",
         "interests": [],
+    }
+    # reset errors
+    form_errors = {
+        "name": "",
+        "email": "",
+        "experience": "",
+        "country": "",
     }
     render()
 
@@ -129,6 +173,9 @@ def make_step_1():
                 .transition_colors(0.15)
                 .on_input(lambda v: update_field("name", v))
             )
+            .child_builder(
+                text(form_errors["name"]).text_color("#f87171").text_size(12)
+            )
         )
         .child_builder(
             div()
@@ -147,6 +194,9 @@ def make_step_1():
                 .focus_border_color("#3b82f6")
                 .transition_colors(0.15)
                 .on_input(lambda v: update_field("email", v))
+            )
+            .child_builder(
+                text(form_errors["email"]).text_color("#f87171").text_size(12)
             )
         )
     )
@@ -228,6 +278,9 @@ def make_step_3():
                 .full_width()
                 .on_change(lambda v: update_field("experience", v))
             )
+            .child_builder(
+                text(form_errors["experience"]).text_color("#f87171").text_size(12)
+            )
         )
         .child_builder(
             div()
@@ -248,6 +301,9 @@ def make_step_3():
                 .selected(form_data["country"])
                 .full_width()
                 .on_change(lambda v: update_field("country", v))
+            )
+            .child_builder(
+                text(form_errors["country"]).text_color("#f87171").text_size(12)
             )
         )
         .child_builder(
@@ -433,6 +489,9 @@ def make_nav_buttons():
 
 def update_field(field, value):
     form_data[field] = value
+    # clear any existing error for this field when the user updates it
+    if field in form_errors:
+        form_errors[field] = ""
 
 
 def toggle_interest(interest, checked):
