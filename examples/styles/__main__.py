@@ -26,13 +26,13 @@ def main():
             .text_weight("bold")
             .text_color("#fafafa")
         )
-        # Buttons with hover effects and transitions
+        # Buttons
         .child_builder(
             div()
             .v_flex()
             .gap(8)
             .child_builder(
-                text("Buttons with smooth transitions")
+                text("Buttons")
                 .text_color("#737373")
                 .text_size(14)
             )
@@ -47,7 +47,6 @@ def main():
                     .hover_bg("#d4d4d4")
                     .text_color("#0a0a0a")
                     .rounded(8)
-                    .transition_all(0.2)
                 )
                 .child_builder(
                     button("Secondary")
@@ -56,7 +55,6 @@ def main():
                     .hover_bg("#404040")
                     .text_color("#fafafa")
                     .rounded(8)
-                    .transition_all(0.2)
                 )
                 .child_builder(
                     button("Outline")
@@ -68,7 +66,6 @@ def main():
                     .border(1, "#404040")
                     .hover_border_color("#525252")
                     .rounded(8)
-                    .transition_all(0.2)
                 )
                 .child_builder(
                     button("Ghost")
