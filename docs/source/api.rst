@@ -20,6 +20,10 @@ Functions
 
    Returns an ``ElementBuilder`` for a text input.
 
+.. function:: image(src: str)
+
+   Returns an ``ElementBuilder`` for an image.
+
 UiWindow
 --------
 
@@ -175,6 +179,54 @@ Text
 .. method:: text_center()
 .. method:: word_wrap(value: str)
 
+Transitions
+^^^^^^^^^^^
+
+.. method:: transition_all(seconds: float)
+
+   Transition all properties with the given duration.
+
+.. method:: transition_colors(seconds: float)
+
+   Transition background, text, and border colors.
+
+.. method:: transition_transform(seconds: float)
+
+   Transition transform (scale, etc.).
+
+.. method:: transition(value: str)
+
+   Raw CSS transition value for advanced use.
+
+Effects
+^^^^^^^
+
+.. method:: opacity(value: float)
+
+   Set opacity (0.0 to 1.0).
+
+.. method:: cursor(value: str)
+
+   Set cursor style (``"pointer"``, ``"grab"``, ``"not-allowed"``).
+
+Hover Styles
+^^^^^^^^^^^^
+
+.. method:: hover_bg(color: str)
+.. method:: hover_text_color(color: str)
+.. method:: hover_border_color(color: str)
+.. method:: hover_opacity(value: float)
+.. method:: hover_scale(value: float)
+
+   Scale on hover (e.g., ``1.05`` for 5% larger).
+
+Focus Styles
+^^^^^^^^^^^^
+
+.. method:: focus_bg(color: str)
+.. method:: focus_text_color(color: str)
+.. method:: focus_border_color(color: str)
+
 Position
 ^^^^^^^^
 
@@ -214,6 +266,33 @@ Events
 .. method:: on_input(callback: Callable[[str], None])
 
    Register an input handler. Receives the current value.
+
+.. method:: on_mouse_enter(callback: Callable[[], None])
+
+   Register a handler for mouse enter.
+
+.. method:: on_mouse_leave(callback: Callable[[], None])
+
+   Register a handler for mouse leave.
+
+.. method:: on_mouse_down(callback: Callable[[], None])
+
+   Register a handler for mouse button press.
+
+.. method:: on_mouse_up(callback: Callable[[], None])
+
+   Register a handler for mouse button release.
+
+Image
+^^^^^
+
+.. method:: alt(text: str)
+
+   Set alt text for accessibility.
+
+.. method:: object_fit(value: str)
+
+   Set object-fit (``"cover"``, ``"contain"``, ``"fill"``).
 
 Input
 ^^^^^

@@ -63,6 +63,9 @@ python -m examples.counter
 
 # Todo list with dialogs
 python -m examples.todo_list
+
+# Hover, focus, and transitions
+python -m examples.styles
 ```
 
 ## Development

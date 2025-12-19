@@ -40,6 +40,56 @@ Styling
    .rounded(12)
    .border(2, "#3182ce")
 
+Hover and Transitions
+---------------------
+
+Buttons with hover:
+
+.. code-block:: python
+
+   button("Click me")
+   .bg("#fafafa")
+   .hover_bg("#d4d4d4")
+   .text_color("#0a0a0a")
+   .rounded(8)
+   .transition_all(0.2)
+
+Input with focus:
+
+.. code-block:: python
+
+   input()
+   .bg("#171717")
+   .border(1, "#404040")
+   .focus_border_color("#a3a3a3")
+   .transition_colors(0.15)
+
+Image with hover scale:
+
+.. code-block:: python
+
+   image("photo.jpg")
+   .width(120)
+   .height(120)
+   .object_fit("cover")
+   .cursor("pointer")
+   .transition_transform(0.3)
+   .hover_scale(1.05)
+
+Images
+------
+
+.. code-block:: python
+
+   from wry_py import image
+
+   image("https://example.com/photo.jpg")
+   .width(200)
+   .height(150)
+   .object_fit("cover")
+   .alt("Description")
+   .rounded(8)
+
 Text Input
 ----------
 

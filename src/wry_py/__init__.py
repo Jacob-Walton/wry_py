@@ -8,4 +8,5 @@ __all__ = [
     "text",
     "button",
     "input",
+    "image",
 ]

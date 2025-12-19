@@ -37,7 +37,29 @@ Element Types
 - ``text(content)`` - Text display
 - ``button(label)`` - Button with click handler
 - ``input()`` - Text input with input handler
-- ``ElementBuilder.image(src)`` - Image
+- ``image(src)`` - Image
+
+Styling States
+--------------
+
+Elements support hover and focus styles:
+
+.. code-block:: python
+
+   button("Submit")
+   .bg("#fafafa")
+   .hover_bg("#d4d4d4")
+   .transition_all(0.2)
+
+   input()
+   .border(1, "#404040")
+   .focus_border_color("#a3a3a3")
+
+Available transitions:
+
+- ``transition_all(seconds)`` - all properties
+- ``transition_colors(seconds)`` - background, text, border colors
+- ``transition_transform(seconds)`` - scale, etc.
 
 Event Handling
 --------------
@@ -59,6 +81,14 @@ Input:
        print(value)
 
    input().on_input(on_input)
+
+Mouse events:
+
+.. code-block:: python
+
+   div()
+   .on_mouse_enter(on_enter)
+   .on_mouse_leave(on_leave)
 
 Callbacks run synchronously in the event loop.
 

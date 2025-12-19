@@ -17,6 +17,7 @@ fn wry_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(elements::text, m)?)?;
     m.add_function(wrap_pyfunction!(elements::button, m)?)?;
     m.add_function(wrap_pyfunction!(elements::input, m)?)?;
+    m.add_function(wrap_pyfunction!(elements::image, m)?)?;
 
     Ok(())
 }

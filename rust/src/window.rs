@@ -237,7 +237,8 @@ fn run_event_loop(
     let ipc_handler = move |request: wry::http::Request<String>| {
         let body = request.body();
         if let Ok(event) = serde_json::from_str::<IpcEvent>(body) {
-            if event.event_type == "click" {
+            // Handle click and mouse events (no arguments)
+            if matches!(event.event_type.as_str(), "click" | "mouse_enter" | "mouse_leave" | "mouse_down" | "mouse_up") {
                 if let Some(ref callback_id) = event.callback_id {
                     let state_for_cb = state_for_ipc.clone();
                     let callback_id = callback_id.clone();
@@ -435,7 +436,8 @@ fn run_event_loop(
     let ipc_handler = move |request: wry::http::Request<String>| {
         let body = request.body();
         if let Ok(event) = serde_json::from_str::<IpcEvent>(body) {
-            if event.event_type == "click" {
+            // Handle click and mouse events (no arguments)
+            if matches!(event.event_type.as_str(), "click" | "mouse_enter" | "mouse_leave" | "mouse_down" | "mouse_up") {
                 if let Some(ref callback_id) = event.callback_id {
                     let state_for_cb = state_clone.clone();
                     let callback_id = callback_id.clone();
@@ -626,6 +628,13 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
                 event_type: 'input',
                 callback_id: callbackId,
                 value: value
+            }}));
+        }}
+
+        function handleMouseEvent(callbackId, eventType) {{
+            window.ipc.postMessage(JSON.stringify({{
+                event_type: eventType,
+                callback_id: callbackId
             }}));
         }}
 

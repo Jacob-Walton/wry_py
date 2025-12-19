@@ -5,6 +5,77 @@ pub fn render_to_html(element: &ElementDef) -> String {
     render_element(element)
 }
 
+/// Build hover/focus CSS styles for an element
+fn build_state_styles(el: &ElementDef) -> String {
+    let mut css = String::new();
+    let id = escape_html(&el.id);
+
+    // Hover styles
+    let mut hover_styles = Vec::new();
+    if let Some(ref bg) = el.hover_bg {
+        hover_styles.push(format!("background-color: {} !important", bg));
+    }
+    if let Some(ref color) = el.hover_text_color {
+        hover_styles.push(format!("color: {} !important", color));
+    }
+    if let Some(ref bc) = el.hover_border_color {
+        hover_styles.push(format!("border-color: {} !important", bc));
+    }
+    if let Some(opacity) = el.hover_opacity {
+        hover_styles.push(format!("opacity: {} !important", opacity));
+    }
+    if let Some(scale) = el.hover_scale {
+        hover_styles.push(format!("transform: scale({}) !important", scale));
+    }
+    if !hover_styles.is_empty() {
+        css.push_str(&format!("#{}:hover {{ {} }}", id, hover_styles.join("; ")));
+    }
+
+    // Focus styles
+    let mut focus_styles = Vec::new();
+    if let Some(ref bg) = el.focus_bg {
+        focus_styles.push(format!("background-color: {} !important", bg));
+    }
+    if let Some(ref color) = el.focus_text_color {
+        focus_styles.push(format!("color: {} !important", color));
+    }
+    if let Some(ref bc) = el.focus_border_color {
+        focus_styles.push(format!("border-color: {} !important", bc));
+    }
+    if !focus_styles.is_empty() {
+        css.push_str(&format!("#{}:focus {{ {} }}", id, focus_styles.join("; ")));
+    }
+
+    if css.is_empty() {
+        String::new()
+    } else {
+        format!("<style>{}</style>", css)
+    }
+}
+
+/// Build event handler attributes for an element
+fn build_event_attrs(el: &ElementDef) -> String {
+    let mut attrs = String::new();
+
+    if let Some(ref cb_id) = el.on_click {
+        attrs.push_str(&format!(" onclick=\"handleClick('{}')\"", escape_html(cb_id)));
+    }
+    if let Some(ref cb_id) = el.on_mouse_enter {
+        attrs.push_str(&format!(" onmouseenter=\"handleMouseEvent('{}', 'mouse_enter')\"", escape_html(cb_id)));
+    }
+    if let Some(ref cb_id) = el.on_mouse_leave {
+        attrs.push_str(&format!(" onmouseleave=\"handleMouseEvent('{}', 'mouse_leave')\"", escape_html(cb_id)));
+    }
+    if let Some(ref cb_id) = el.on_mouse_down {
+        attrs.push_str(&format!(" onmousedown=\"handleMouseEvent('{}', 'mouse_down')\"", escape_html(cb_id)));
+    }
+    if let Some(ref cb_id) = el.on_mouse_up {
+        attrs.push_str(&format!(" onmouseup=\"handleMouseEvent('{}', 'mouse_up')\"", escape_html(cb_id)));
+    }
+
+    attrs
+}
+
 fn render_element(el: &ElementDef) -> String {
     match el.element_type.as_str() {
         "text" => render_text(el),
@@ -116,6 +187,15 @@ fn render_div(el: &ElementDef) -> String {
     if let Some(ref fw) = el.font_weight {
         styles.push(format!("font-weight: {}", fw));
     }
+    if let Some(ref transition) = el.transition {
+        styles.push(format!("transition: {}", transition));
+    }
+    if let Some(opacity) = el.opacity {
+        styles.push(format!("opacity: {}", opacity));
+    }
+    if let Some(ref cursor) = el.cursor {
+        styles.push(format!("cursor: {}", cursor));
+    }
 
     // Build attributes
     let class_attr = if classes.is_empty() {
@@ -130,11 +210,8 @@ fn render_div(el: &ElementDef) -> String {
         format!(" style=\"{}\"", styles.join("; "))
     };
 
-    let onclick_attr = if let Some(ref cb_id) = el.on_click {
-        format!(" onclick=\"handleClick('{}')\"", escape_html(cb_id))
-    } else {
-        String::new()
-    };
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
 
     // Render children
     let children_html: String = el.children.iter().map(render_element).collect();
@@ -143,11 +220,12 @@ fn render_div(el: &ElementDef) -> String {
     let text_content = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
     format!(
-        "<div id=\"{}\"{}{}{}>{}{}</div>",
+        "{}<div id=\"{}\"{}{}{}>{}{}</div>",
+        state_styles,
         escape_html(&el.id),
         class_attr,
         style_attr,
-        onclick_attr,
+        event_attrs,
         text_content,
         children_html
     )
@@ -181,9 +259,11 @@ fn render_text(el: &ElementDef) -> String {
         format!(" style=\"{}\"", styles.join("; "))
     };
 
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
     let text = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
-    format!("<span id=\"{}\"{}>{}</span>", escape_html(&el.id), style_attr, text)
+    format!("{}<span id=\"{}\"{}{}>{}</span>", state_styles, escape_html(&el.id), style_attr, event_attrs, text)
 }
 
 fn render_button(el: &ElementDef) -> String {
@@ -219,20 +299,16 @@ fn render_button(el: &ElementDef) -> String {
     }
 
     let style_attr = format!(" style=\"{}\"", styles.join("; "));
-
-    let onclick_attr = if let Some(ref cb_id) = el.on_click {
-        format!(" onclick=\"handleClick('{}')\"", escape_html(cb_id))
-    } else {
-        String::new()
-    };
-
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
     let text = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
     format!(
-        "<button id=\"{}\"{}{}>{}</button>",
+        "{}<button id=\"{}\"{}{}>{}</button>",
+        state_styles,
         escape_html(&el.id),
         style_attr,
-        onclick_attr,
+        event_attrs,
         text
     )
 }
@@ -249,6 +325,18 @@ fn render_image(el: &ElementDef) -> String {
     if let Some(br) = el.border_radius {
         styles.push(format!("border-radius: {}px", br));
     }
+    if let Some(ref of) = el.object_fit {
+        styles.push(format!("object-fit: {}", of));
+    }
+    if let Some(ref transition) = el.transition {
+        styles.push(format!("transition: {}", transition));
+    }
+    if let Some(opacity) = el.opacity {
+        styles.push(format!("opacity: {}", opacity));
+    }
+    if let Some(ref cursor) = el.cursor {
+        styles.push(format!("cursor: {}", cursor));
+    }
 
     let style_attr = if styles.is_empty() {
         String::new()
@@ -256,13 +344,21 @@ fn render_image(el: &ElementDef) -> String {
         format!(" style=\"{}\"", styles.join("; "))
     };
 
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
     let src = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
+    let alt_attr = el.alt.as_ref()
+        .map(|a| format!(" alt=\"{}\"", escape_html(a)))
+        .unwrap_or_default();
 
     format!(
-        "<img id=\"{}\" src=\"{}\"{} />",
+        "{}<img id=\"{}\" src=\"{}\"{}{}{}/>",
+        state_styles,
         escape_html(&el.id),
         src,
-        style_attr
+        alt_attr,
+        style_attr,
+        event_attrs
     )
 }
 
@@ -308,6 +404,9 @@ fn render_input(el: &ElementDef) -> String {
         String::new()
     };
 
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
+
     let value_attr = el.value.as_ref()
         .map(|v| format!(" value=\"{}\"", escape_html(v)))
         .unwrap_or_default();
@@ -317,10 +416,12 @@ fn render_input(el: &ElementDef) -> String {
         .unwrap_or_default();
 
     format!(
-        "<input id=\"{}\" type=\"text\"{}{}{}{}/>",
+        "{}<input id=\"{}\" type=\"text\"{}{}{}{}{}/>",
+        state_styles,
         escape_html(&el.id),
         style_attr,
         oninput_attr,
+        event_attrs,
         value_attr,
         placeholder_attr
     )

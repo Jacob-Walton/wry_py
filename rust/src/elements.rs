@@ -72,11 +72,57 @@ pub struct ElementDef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub font_weight: Option<String>,
 
+    // Transitions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transition: Option<String>,
+
+    // Opacity
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f32>,
+
+    // Cursor
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+
+    // Hover styles
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover_bg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover_text_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover_border_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover_opacity: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hover_scale: Option<f32>,
+
+    // Focus styles
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus_bg: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus_text_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus_border_color: Option<String>,
+
+    // Image properties
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub object_fit: Option<String>,
+
     // Interactivity
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_click: Option<String>, // callback ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_input: Option<String>, // callback ID for input changes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_mouse_enter: Option<String>, // callback ID for mouse enter
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_mouse_leave: Option<String>, // callback ID for mouse leave
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_mouse_down: Option<String>, // callback ID for mouse down
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_mouse_up: Option<String>, // callback ID for mouse up
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>, // input value
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,8 +167,25 @@ impl Default for ElementDef {
             text_content: None,
             font_size: None,
             font_weight: None,
+            transition: None,
+            opacity: None,
+            cursor: None,
+            hover_bg: None,
+            hover_text_color: None,
+            hover_border_color: None,
+            hover_opacity: None,
+            hover_scale: None,
+            focus_bg: None,
+            focus_text_color: None,
+            focus_border_color: None,
+            alt: None,
+            object_fit: None,
             on_click: None,
             on_input: None,
+            on_mouse_enter: None,
+            on_mouse_leave: None,
+            on_mouse_down: None,
+            on_mouse_up: None,
             value: None,
             placeholder: None,
             children: Vec::new(),
@@ -515,6 +578,127 @@ impl ElementBuilder {
         slf
     }
 
+    /// Set CSS transition (raw value for advanced use)
+    #[pyo3(text_signature = "($self, value)")]
+    fn transition(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.transition = Some(value);
+        slf
+    }
+
+    /// Transition all properties with given duration in seconds
+    #[pyo3(text_signature = "($self, seconds)")]
+    fn transition_all(mut slf: PyRefMut<'_, Self>, seconds: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.transition = Some(format!("all {}s ease", seconds));
+        slf
+    }
+
+    /// Transition colors (background, text, border) with given duration
+    #[pyo3(text_signature = "($self, seconds)")]
+    fn transition_colors(mut slf: PyRefMut<'_, Self>, seconds: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.transition = Some(format!(
+            "background-color {}s ease, color {}s ease, border-color {}s ease",
+            seconds, seconds, seconds
+        ));
+        slf
+    }
+
+    /// Transition transform (scale, etc.) with given duration
+    #[pyo3(text_signature = "($self, seconds)")]
+    fn transition_transform(mut slf: PyRefMut<'_, Self>, seconds: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.transition = Some(format!("transform {}s ease", seconds));
+        slf
+    }
+
+    /// Set opacity (0.0 to 1.0)
+    #[pyo3(text_signature = "($self, value)")]
+    fn opacity(mut slf: PyRefMut<'_, Self>, value: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.opacity = Some(value);
+        slf
+    }
+
+    /// Set cursor style (e.g., "pointer", "grab", "not-allowed")
+    #[pyo3(text_signature = "($self, value)")]
+    fn cursor(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.cursor = Some(value);
+        slf
+    }
+
+    // Hover styles
+
+    /// Set background color on hover
+    #[pyo3(text_signature = "($self, color)")]
+    fn hover_bg(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.hover_bg = Some(color);
+        slf
+    }
+
+    /// Set text color on hover
+    #[pyo3(text_signature = "($self, color)")]
+    fn hover_text_color(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.hover_text_color = Some(color);
+        slf
+    }
+
+    /// Set border color on hover
+    #[pyo3(text_signature = "($self, color)")]
+    fn hover_border_color(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.hover_border_color = Some(color);
+        slf
+    }
+
+    /// Set opacity on hover (0.0 to 1.0)
+    #[pyo3(text_signature = "($self, value)")]
+    fn hover_opacity(mut slf: PyRefMut<'_, Self>, value: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.hover_opacity = Some(value);
+        slf
+    }
+
+    /// Set scale on hover (e.g., 1.05 for 5% larger)
+    #[pyo3(text_signature = "($self, value)")]
+    fn hover_scale(mut slf: PyRefMut<'_, Self>, value: f32) -> PyRefMut<'_, Self> {
+        slf.element.def.hover_scale = Some(value);
+        slf
+    }
+
+    // Focus styles
+
+    /// Set background color on focus
+    #[pyo3(text_signature = "($self, color)")]
+    fn focus_bg(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.focus_bg = Some(color);
+        slf
+    }
+
+    /// Set text color on focus
+    #[pyo3(text_signature = "($self, color)")]
+    fn focus_text_color(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.focus_text_color = Some(color);
+        slf
+    }
+
+    /// Set border color on focus
+    #[pyo3(text_signature = "($self, color)")]
+    fn focus_border_color(mut slf: PyRefMut<'_, Self>, color: String) -> PyRefMut<'_, Self> {
+        slf.element.def.focus_border_color = Some(color);
+        slf
+    }
+
+    // Image properties
+
+    /// Set alt text for images
+    #[pyo3(text_signature = "($self, text)")]
+    fn alt(mut slf: PyRefMut<'_, Self>, text: String) -> PyRefMut<'_, Self> {
+        slf.element.def.alt = Some(text);
+        slf
+    }
+
+    /// Set object-fit for images (cover, contain, fill, none, scale-down)
+    #[pyo3(text_signature = "($self, value)")]
+    fn object_fit(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.object_fit = Some(value);
+        slf
+    }
+
     /// Set position
     #[pyo3(text_signature = "($self, value)")]
     fn position(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
@@ -638,6 +822,46 @@ impl ElementBuilder {
         self.clone()
     }
 
+    /// Register a callback for when the mouse enters the element.
+    #[pyo3(text_signature = "($self, callback)")]
+    fn on_mouse_enter(&mut self, callback: Py<PyAny>) -> Self {
+        let callback_id = uuid();
+        self.element.def.on_mouse_enter = Some(callback_id.clone());
+        self.element.callback_ids.push(callback_id.clone());
+        store_callback(callback_id, callback);
+        self.clone()
+    }
+
+    /// Register a callback for when the mouse leaves the element.
+    #[pyo3(text_signature = "($self, callback)")]
+    fn on_mouse_leave(&mut self, callback: Py<PyAny>) -> Self {
+        let callback_id = uuid();
+        self.element.def.on_mouse_leave = Some(callback_id.clone());
+        self.element.callback_ids.push(callback_id.clone());
+        store_callback(callback_id, callback);
+        self.clone()
+    }
+
+    /// Register a callback for when the mouse button is pressed on the element.
+    #[pyo3(text_signature = "($self, callback)")]
+    fn on_mouse_down(&mut self, callback: Py<PyAny>) -> Self {
+        let callback_id = uuid();
+        self.element.def.on_mouse_down = Some(callback_id.clone());
+        self.element.callback_ids.push(callback_id.clone());
+        store_callback(callback_id, callback);
+        self.clone()
+    }
+
+    /// Register a callback for when the mouse button is released on the element.
+    #[pyo3(text_signature = "($self, callback)")]
+    fn on_mouse_up(&mut self, callback: Py<PyAny>) -> Self {
+        let callback_id = uuid();
+        self.element.def.on_mouse_up = Some(callback_id.clone());
+        self.element.callback_ids.push(callback_id.clone());
+        store_callback(callback_id, callback);
+        self.clone()
+    }
+
     /// Build and return the final Element. Call this after configuring all properties.
     #[pyo3(text_signature = "($self)")]
     fn build(&self) -> Element {
@@ -676,4 +900,11 @@ pub fn button(label: String) -> ElementBuilder {
 #[pyo3(text_signature = "()")]
 pub fn input() -> ElementBuilder {
     ElementBuilder::input()
+}
+
+/// Create an image element. Shorthand for ElementBuilder.image(src).
+#[pyfunction]
+#[pyo3(text_signature = "(src)")]
+pub fn image(src: String) -> ElementBuilder {
+    ElementBuilder::image(src)
 }
