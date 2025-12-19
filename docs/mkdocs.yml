@@ -1,0 +1,5 @@
+site_name: Wry Py
+site_url: https://jacob-walton.github.io/wry-py/
+
+theme:
+  name: material
