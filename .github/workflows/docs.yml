@@ -2,8 +2,9 @@ name: Deploy docs
 
 on:
     push: 
-        tags:
-        - '*'
+        branches: [main]
+        paths:
+            - 'docs/**'
     workflow_dispatch:
 
 permissions:
