@@ -188,6 +188,14 @@ def main():
                 )
             )
         )
+        .child_builder(
+            div()
+            .child_text("This text was styled with raw CSS using the .style() method.")
+            .style("font-style: italic;")
+            .style("margin-top: 24px;")
+            .style("text-align: center;")
+            .style("color: #a3a3a3;")
+        )
         .build()
     )
 

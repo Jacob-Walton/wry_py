@@ -83,6 +83,9 @@ pub struct ElementDef {
     // Cursor
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
+    // Raw CSS styles
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<String>,
 
     // Hover styles
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -170,6 +173,7 @@ impl Default for ElementDef {
             transition: None,
             opacity: None,
             cursor: None,
+            style: None,
             hover_bg: None,
             hover_text_color: None,
             hover_border_color: None,
@@ -620,6 +624,24 @@ impl ElementBuilder {
     #[pyo3(text_signature = "($self, value)")]
     fn cursor(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
         slf.element.def.cursor = Some(value);
+        slf
+    }
+
+    /// Append raw CSS styles to the element. Multiple calls will append.
+    #[pyo3(text_signature = "($self, css)")]
+    fn style(mut slf: PyRefMut<'_, Self>, css: String) -> PyRefMut<'_, Self> {
+        match slf.element.def.style.as_mut() {
+            Some(existing) => {
+                // Ensure a semicolon separator between appended blocks
+                if !existing.ends_with(';') {
+                    existing.push(';');
+                }
+                existing.push_str(&css);
+            }
+            None => {
+                slf.element.def.style = Some(css);
+            }
+        }
         slf
     }
 

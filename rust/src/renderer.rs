@@ -129,6 +129,7 @@ fn render_div(el: &ElementDef) -> String {
     if let Some(p) = el.padding {
         styles.push(format!("padding: {}px", p));
     }
+
     if let Some(pt) = el.padding_top {
         styles.push(format!("padding-top: {}px", pt));
     }
@@ -195,6 +196,11 @@ fn render_div(el: &ElementDef) -> String {
     }
     if let Some(ref cursor) = el.cursor {
         styles.push(format!("cursor: {}", cursor));
+    }
+
+    // Append any raw CSS provided via ElementDef.style
+    if let Some(ref raw) = el.style {
+        styles.push(escape_html(raw));
     }
 
     // Build attributes
@@ -296,6 +302,16 @@ fn render_button(el: &ElementDef) -> String {
     if let Some(p) = el.padding {
         styles.retain(|s| !s.starts_with("padding:"));
         styles.push(format!("padding: {}px", p));
+    }
+
+    // Append any raw CSS provided via ElementDef.style
+    if let Some(ref raw) = el.style {
+        styles.push(escape_html(raw));
+    }
+
+    // Append any raw CSS provided via ElementDef.style
+    if let Some(ref raw) = el.style {
+        styles.push(escape_html(raw));
     }
 
     let style_attr = format!(" style=\"{}\"", styles.join("; "));
