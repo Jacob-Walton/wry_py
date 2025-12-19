@@ -55,6 +55,23 @@ render()
 window.run()
 ```
 
+## Local assets
+
+If your webview blocks `file://` access, register binary assets (images, fonts)
+from Python using `AssetCatalog` and reference them with the `asset:` prefix
+when creating an image. This embeds the bytes as `data:` URIs so the webview
+can load them without filesystem permissions.
+
+```python
+from wry_py import AssetCatalog, image
+
+catalog = AssetCatalog()
+with open("examples/local_image/assets/logo.png", "rb") as f:
+    catalog.add("logo.png", f.read())
+
+image("asset:logo.png").width(120).height(120)
+```
+
 ## Examples
 
 ```bash

@@ -106,6 +106,23 @@ Element
 ElementBuilder
 --------------
 
+AssetCatalog
+------------
+
+.. class:: AssetCatalog()
+
+   Register binary assets (images, fonts) from Python so the renderer can embed
+   them as data URIs and avoid `file://` permission issues in the webview.
+
+   .. method:: add(name: str, data: bytes)
+
+      Add raw bytes under `name` to the global asset catalog.
+
+   .. method:: get_data_uri(name: str) -> Optional[str]
+
+      Return a `data:` URI for the registered asset, or ``None`` if not present.
+
+
 All methods return ``self`` for chaining unless noted.
 
 Factory Methods

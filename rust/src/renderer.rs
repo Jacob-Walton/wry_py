@@ -1,4 +1,8 @@
 use crate::elements::ElementDef;
+use percent_encoding::utf8_percent_encode;
+use percent_encoding::NON_ALPHANUMERIC;
+use std::path::Path;
+use crate::assets;
 
 /// Render an ElementDef tree to HTML string
 pub fn render_to_html(element: &ElementDef) -> String {
@@ -51,6 +55,80 @@ fn build_state_styles(el: &ElementDef) -> String {
     } else {
         format!("<style>{}</style>", css)
     }
+}
+
+fn percent_encode_path(p: &Path) -> String {
+    let s = p.to_string_lossy().replace('\\', "/");
+    let encoded_segments: Vec<String> = s
+        .split('/')
+        .map(|seg| utf8_percent_encode(seg, NON_ALPHANUMERIC).to_string())
+        .collect();
+    let joined = encoded_segments.join("/");
+    format!("file:///{}", joined.trim_start_matches('/'))
+}
+
+fn resolve_local_asset(path_str: &str) -> String {
+    // If it's already a fully-qualified URL, leave it as-is.
+    if path_str.starts_with("http://")
+        || path_str.starts_with("https://")
+        || path_str.starts_with("data:")
+        || path_str.starts_with("file://")
+    {
+        return path_str.to_string();
+    }
+
+    // asset: prefix allows explicit lookup in AssetCatalog
+    if let Some(name) = path_str.strip_prefix("asset:") {
+        if let Some(uri) = assets::get_asset_data_uri(name) {
+            return uri;
+        }
+    }
+
+    // If AssetCatalog has this asset by name or basename, return data URI
+    if let Some(uri) = assets::get_asset_data_uri(path_str) {
+        return uri;
+    }
+    if let Some(basename) = Path::new(path_str).file_name().and_then(|s| s.to_str()) {
+        if let Some(uri) = assets::get_asset_data_uri(basename) {
+            return uri;
+        }
+    }
+
+    // Fall back to canonicalizing on-disk paths and returning file:// URL
+    match std::fs::canonicalize(path_str) {
+        Ok(p) => percent_encode_path(&p),
+        Err(_) => path_str.to_string(),
+    }
+}
+
+// Rewrite occurrences of url(...) inside CSS to resolve local paths to file:// URLs.
+fn rewrite_css_urls(css: &str) -> String {
+    let mut out = String::with_capacity(css.len());
+    let mut idx = 0usize;
+    while let Some(pos) = css[idx..].find("url(") {
+        let start = idx + pos;
+        out.push_str(&css[idx..start]);
+        // find closing ')'
+        if let Some(end_rel) = css[start..].find(')') {
+            let end = start + end_rel;
+            let inner = &css[start + 4..end]; // between url( and )
+            let inner_trim = inner.trim().trim_matches(|c| c == '\'' || c == '"');
+            let resolved = resolve_local_asset(inner_trim);
+            out.push_str("url(\"");
+            out.push_str(&resolved);
+            out.push_str("\")");
+            idx = end + 1;
+        } else {
+            // no closing paren - append rest and break
+            out.push_str(&css[start..]);
+            idx = css.len();
+            break;
+        }
+    }
+    if idx < css.len() {
+        out.push_str(&css[idx..]);
+    }
+    out
 }
 
 // Build border-radius style considering per-corner values and fallback to uniform radius
@@ -263,9 +341,10 @@ fn render_div(el: &ElementDef) -> String {
         styles.push(format!("cursor: {}", cursor));
     }
 
-    // Append any raw CSS provided via ElementDef.style
+    // Append any raw CSS provided via ElementDef.style (rewrite url(...) references)
     if let Some(ref raw) = el.style {
-        styles.push(escape_html(raw));
+        let rewritten = rewrite_css_urls(raw);
+        styles.push(escape_html(&rewritten));
     }
 
     // Build attributes
@@ -386,14 +465,10 @@ fn render_button(el: &ElementDef) -> String {
         styles.extend(side_border_styles);
     }
 
-    // Append any raw CSS provided via ElementDef.style
+    // Append any raw CSS provided via ElementDef.style (rewrite url(...) references)
     if let Some(ref raw) = el.style {
-        styles.push(escape_html(raw));
-    }
-
-    // Append any raw CSS provided via ElementDef.style
-    if let Some(ref raw) = el.style {
-        styles.push(escape_html(raw));
+        let rewritten = rewrite_css_urls(raw);
+        styles.push(escape_html(&rewritten));
     }
 
     let style_attr = format!(" style=\"{}\"", styles.join("; "));
@@ -457,7 +532,12 @@ fn render_image(el: &ElementDef) -> String {
 
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
-    let src = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
+    // Resolve image src: if it's not an http(s)/data/file URL, try to
+    // interpret it as a local path and convert to a file:// URL so the
+    // webview can load local assets by relative path.
+    let raw_src = el.text_content.as_ref().map(|t| t.as_str()).unwrap_or("");
+    let resolved_src = resolve_local_asset(raw_src);
+    let src = escape_html(&resolved_src);
     let alt_attr = el.alt.as_ref()
         .map(|a| format!(" alt=\"{}\"", escape_html(a)))
         .unwrap_or_default();

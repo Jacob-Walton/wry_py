@@ -1,6 +1,7 @@
 mod elements;
 mod renderer;
 mod window;
+mod assets;
 
 use pyo3::prelude::*;
 
@@ -11,6 +12,7 @@ fn wry_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<window::UiWindow>()?;
     m.add_class::<elements::Element>()?;
     m.add_class::<elements::ElementBuilder>()?;
+    m.add_class::<assets::AssetCatalog>()?;
 
     // Convenience functions
     m.add_function(wrap_pyfunction!(elements::div, m)?)?;

@@ -90,6 +90,26 @@ Image with hover scale:
    .transition_transform(0.3)
    .hover_scale(1.05)
 
+Local images
+------------
+
+For environments where `file://` access is restricted by the webview, use
+`AssetCatalog` to register asset bytes and reference them by name. The
+renderer will prefer the registered asset (embedded as a data URI) which
+avoids local-file permission issues.
+
+Example (register and use an asset):
+
+.. code-block:: python
+
+   from wry_py import AssetCatalog, image
+
+   catalog = AssetCatalog()
+   with open("examples/local_image/assets/logo.png", "rb") as f:
+       catalog.add("logo.png", f.read())
+
+   image("asset:logo.png").width(120).height(120).object_fit("cover")
+
 Images
 ------
 
