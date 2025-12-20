@@ -837,7 +837,7 @@ fn render_select(el: &ElementDef) -> String {
         styles.retain(|s| !s.starts_with("border-radius:"));
         styles.push(format!("border-radius: {}px", br));
     }
-    if let (Some(bw), Some(ref bc)) = (el.border_width, &el.border_color) {
+    if let (Some(bw), Some(bc)) = (el.border_width, &el.border_color) {
         styles.push(format!("border: {}px solid {}", bw, bc));
     }
     if let Some(ref transition) = el.transition {
