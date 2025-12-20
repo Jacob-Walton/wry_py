@@ -818,10 +818,6 @@ fn render_radio(el: &ElementDef) -> String {
 fn render_select(el: &ElementDef) -> String {
     let mut styles = vec![
         "padding: 8px 12px".to_string(),
-        "border: 1px solid #555".to_string(),
-        "border-radius: 4px".to_string(),
-        "background: #2a2a3a".to_string(),
-        "color: white".to_string(),
         "font-size: 14px".to_string(),
         "cursor: pointer".to_string(),
     ];
@@ -841,8 +837,16 @@ fn render_select(el: &ElementDef) -> String {
         styles.retain(|s| !s.starts_with("border-radius:"));
         styles.push(format!("border-radius: {}px", br));
     }
+    if let (Some(bw), Some(ref bc)) = (el.border_width, &el.border_color) {
+        styles.push(format!("border: {}px solid {}", bw, bc));
+    }
     if let Some(ref transition) = el.transition {
         styles.push(format!("transition: {}", transition));
+    }
+
+    // Append raw CSS if provided
+    if let Some(ref raw) = el.style {
+        styles.push(raw.clone());
     }
 
     let style_attr = format!(" style=\"{}\"", styles.join("; "));

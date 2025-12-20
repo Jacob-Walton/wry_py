@@ -276,6 +276,10 @@ def make_step_3():
                 .option("expert", "Expert (10+ years)")
                 .selected(form_data["experience"])
                 .full_width()
+                .bg("#2a2a3a")
+                .text_color("#fff")
+                .border(1, "#444")
+                .rounded(6)
                 .on_change(lambda v: update_field("experience", v))
             )
             .child_builder(
@@ -300,6 +304,10 @@ def make_step_3():
                 .option("other", "Other")
                 .selected(form_data["country"])
                 .full_width()
+                .bg("#2a2a3a")
+                .text_color("#fff")
+                .border(1, "#444")
+                .rounded(6)
                 .on_change(lambda v: update_field("country", v))
             )
             .child_builder(

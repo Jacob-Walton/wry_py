@@ -183,6 +183,61 @@ Text Input
        .on_input(on_input)
    )
 
+Checkbox
+--------
+
+.. code-block:: python
+
+   from wry_py import checkbox
+
+   def on_change(checked: str):
+       # checked is "true" or "false" as string
+       print(f"Checked: {checked == 'true'}")
+
+   checkbox("Accept terms").checked(False).on_change(on_change)
+
+Radio Buttons
+-------------
+
+Radio buttons with the same ``group()`` are mutually exclusive:
+
+.. code-block:: python
+
+   from wry_py import div, radio
+
+   selected = "email"
+
+   def on_change(value: str):
+       global selected
+       selected = value
+
+   (
+       div().v_flex().gap(8)
+       .child_builder(radio("Email").group("contact").value("email").checked(True).on_change(on_change))
+       .child_builder(radio("Phone").group("contact").value("phone").on_change(on_change))
+       .child_builder(radio("SMS").group("contact").value("sms").on_change(on_change))
+   )
+
+Select Dropdown
+---------------
+
+.. code-block:: python
+
+   from wry_py import select
+
+   def on_change(value: str):
+       print(f"Selected: {value}")
+
+   (
+       select()
+       .option("", "Choose...")
+       .option("us", "United States")
+       .option("uk", "United Kingdom")
+       .option("ca", "Canada")
+       .selected("us")
+       .on_change(on_change)
+   )
+
 Form Example
 ------------
 
