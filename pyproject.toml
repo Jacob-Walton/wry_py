@@ -27,3 +27,9 @@ Documentation = "https://jacob-walton.github.io/wry_py/"
 manifest-path = "rust/Cargo.toml"
 features = ["pyo3/extension-module"]
 module-name = "wry_py"
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

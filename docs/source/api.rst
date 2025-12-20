@@ -244,6 +244,37 @@ Layout
 
    Align this item differently from siblings.
 
+Grid
+^^^^
+
+.. method:: grid()
+
+   Enable CSS grid layout on this element.
+
+.. method:: grid_cols(value: str)
+
+   Set grid template columns (e.g., ``"1fr 1fr 1fr"`` or ``"repeat(3, 1fr)"``).
+
+.. method:: grid_rows(value: str)
+
+   Set grid template rows (e.g., ``"auto 1fr auto"``).
+
+.. method:: col(value: str)
+
+   Set which column(s) this item spans (e.g., ``"1 / 3"`` or ``"span 2"``).
+
+.. method:: row(value: str)
+
+   Set which row(s) this item spans (e.g., ``"1 / 3"`` or ``"span 2"``).
+
+.. method:: place_items(value: str)
+
+   Set alignment for grid items (e.g., ``"center"``).
+
+.. method:: place_center()
+
+   Center grid items both horizontally and vertically.
+
 Padding
 ^^^^^^^
 

@@ -53,6 +53,20 @@ pub struct ElementDef {
     pub flex_basis: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub align_self: Option<String>,
+
+    // Grid layout
+    pub display_grid: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_template_columns: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_template_rows: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_column: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grid_row: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub place_items: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub padding: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,6 +247,12 @@ impl Default for ElementDef {
             flex_shrink: None,
             flex_basis: None,
             align_self: None,
+            display_grid: false,
+            grid_template_columns: None,
+            grid_template_rows: None,
+            grid_column: None,
+            grid_row: None,
+            place_items: None,
             padding: None,
             padding_top: None,
             padding_right: None,
@@ -670,6 +690,59 @@ impl ElementBuilder {
     #[pyo3(text_signature = "($self, value)")]
     fn align_self(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
         slf.element.def.align_self = Some(value);
+        slf
+    }
+
+    // Grid layout methods
+
+    /// Use CSS grid layout
+    #[pyo3(text_signature = "($self)")]
+    fn grid(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.display_grid = true;
+        slf
+    }
+
+    /// Set grid template columns (e.g., "1fr 1fr 1fr" or "repeat(3, 1fr)")
+    #[pyo3(text_signature = "($self, value)")]
+    fn grid_cols(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.display_grid = true;
+        slf.element.def.grid_template_columns = Some(value);
+        slf
+    }
+
+    /// Set grid template rows (e.g., "auto 1fr auto")
+    #[pyo3(text_signature = "($self, value)")]
+    fn grid_rows(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.display_grid = true;
+        slf.element.def.grid_template_rows = Some(value);
+        slf
+    }
+
+    /// Set which column(s) this item spans (e.g., "1 / 3" or "span 2")
+    #[pyo3(text_signature = "($self, value)")]
+    fn col(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.grid_column = Some(value);
+        slf
+    }
+
+    /// Set which row(s) this item spans (e.g., "1 / 3" or "span 2")
+    #[pyo3(text_signature = "($self, value)")]
+    fn row(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.grid_row = Some(value);
+        slf
+    }
+
+    /// Set place-items (align and justify items)
+    #[pyo3(text_signature = "($self, value)")]
+    fn place_items(mut slf: PyRefMut<'_, Self>, value: String) -> PyRefMut<'_, Self> {
+        slf.element.def.place_items = Some(value);
+        slf
+    }
+
+    /// Center grid items both horizontally and vertically
+    #[pyo3(text_signature = "($self)")]
+    fn place_center(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.element.def.place_items = Some("center".to_string());
         slf
     }
 

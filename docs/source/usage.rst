@@ -28,6 +28,39 @@ Space between:
 
    div().h_flex().justify_between()
 
+Grid Layout
+-----------
+
+Basic 3-column grid:
+
+.. code-block:: python
+
+   div().grid_cols("1fr 1fr 1fr").gap(16)
+
+Responsive-style grid with auto-fill:
+
+.. code-block:: python
+
+   div().grid_cols("repeat(auto-fill, minmax(200px, 1fr))").gap(16)
+
+Item spanning multiple columns:
+
+.. code-block:: python
+
+   div().col("span 2")  # Spans 2 columns
+
+2x2 grid with centered items:
+
+.. code-block:: python
+
+   (
+       div()
+       .grid_cols("1fr 1fr")
+       .grid_rows("1fr 1fr")
+       .gap(20)
+       .place_center()
+   )
+
 Styling
 -------
 

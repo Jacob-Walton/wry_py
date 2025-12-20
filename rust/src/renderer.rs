@@ -255,6 +255,26 @@ fn render_div(el: &ElementDef) -> String {
         _ => {}
     }
 
+    // Grid layout
+    if el.display_grid {
+        styles.push("display: grid".to_string());
+    }
+    if let Some(ref cols) = el.grid_template_columns {
+        styles.push(format!("grid-template-columns: {}", cols));
+    }
+    if let Some(ref rows) = el.grid_template_rows {
+        styles.push(format!("grid-template-rows: {}", rows));
+    }
+    if let Some(ref col) = el.grid_column {
+        styles.push(format!("grid-column: {}", col));
+    }
+    if let Some(ref row) = el.grid_row {
+        styles.push(format!("grid-row: {}", row));
+    }
+    if let Some(ref pi) = el.place_items {
+        styles.push(format!("place-items: {}", pi));
+    }
+
     // Inline styles
     if let Some(w) = el.width {
         styles.push(format!("width: {}px", w));
