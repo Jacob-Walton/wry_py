@@ -1,6 +1,6 @@
 [package]
 name = "wry_py"
-version = "0.1.7"
+version = "0.2.0"
 edition = "2024"
 authors = ["Jacob Walton <jacob-walton@konpeki.co.uk"]
 repository = "https://github.com/Jacob-Walton/wry_py"

@@ -12,7 +12,7 @@ pub fn render_to_html(element: &ElementDef) -> String {
 /// Build hover/focus CSS styles for an element
 fn build_state_styles(el: &ElementDef) -> String {
     let mut css = String::new();
-    let id = escape_html(&el.id);
+    let id = escape_html(el.user_id.as_deref().unwrap_or(&el.id));
 
     // Hover styles
     let mut hover_styles = Vec::new();
@@ -203,13 +203,31 @@ fn render_element(el: &ElementDef) -> String {
         "button" => render_button(el),
         "image" => render_image(el),
         "input" => render_input(el),
+        "checkbox" => render_checkbox(el),
+        "radio" => render_radio(el),
+        "select" => render_select(el),
         _ => render_div(el), // div is default
     }
+}
+
+/// Get the element ID to use in HTML (user_id if set, otherwise internal id)
+fn get_element_id(el: &ElementDef) -> &str {
+    el.user_id.as_deref().unwrap_or(&el.id)
+}
+
+/// Build data-id attribute for internal element tracking (needed for callbacks)
+fn build_data_id_attr(el: &ElementDef) -> String {
+    format!(" data-wry-id=\"{}\"", escape_html(&el.id))
 }
 
 fn render_div(el: &ElementDef) -> String {
     let mut classes = Vec::new();
     let mut styles = Vec::new();
+
+    // Add user-specified class names first
+    for class in &el.class_names {
+        classes.push(class.as_str());
+    }
 
     // Layout classes
     if el.size_full {
@@ -237,6 +255,26 @@ fn render_div(el: &ElementDef) -> String {
         _ => {}
     }
 
+    // Grid layout
+    if el.display_grid {
+        styles.push("display: grid".to_string());
+    }
+    if let Some(ref cols) = el.grid_template_columns {
+        styles.push(format!("grid-template-columns: {}", cols));
+    }
+    if let Some(ref rows) = el.grid_template_rows {
+        styles.push(format!("grid-template-rows: {}", rows));
+    }
+    if let Some(ref col) = el.grid_column {
+        styles.push(format!("grid-column: {}", col));
+    }
+    if let Some(ref row) = el.grid_row {
+        styles.push(format!("grid-row: {}", row));
+    }
+    if let Some(ref pi) = el.place_items {
+        styles.push(format!("place-items: {}", pi));
+    }
+
     // Inline styles
     if let Some(w) = el.width {
         styles.push(format!("width: {}px", w));
@@ -244,8 +282,35 @@ fn render_div(el: &ElementDef) -> String {
     if let Some(h) = el.height {
         styles.push(format!("height: {}px", h));
     }
+    if let Some(mw) = el.min_width {
+        styles.push(format!("min-width: {}px", mw));
+    }
+    if let Some(mw) = el.max_width {
+        styles.push(format!("max-width: {}px", mw));
+    }
+    if let Some(mh) = el.min_height {
+        styles.push(format!("min-height: {}px", mh));
+    }
+    if let Some(mh) = el.max_height {
+        styles.push(format!("max-height: {}px", mh));
+    }
     if let Some(g) = el.gap {
         styles.push(format!("gap: {}px", g));
+    }
+    if let Some(ref fw) = el.flex_wrap {
+        styles.push(format!("flex-wrap: {}", fw));
+    }
+    if let Some(fg) = el.flex_grow {
+        styles.push(format!("flex-grow: {}", fg));
+    }
+    if let Some(fs) = el.flex_shrink {
+        styles.push(format!("flex-shrink: {}", fs));
+    }
+    if let Some(ref fb) = el.flex_basis {
+        styles.push(format!("flex-basis: {}", fb));
+    }
+    if let Some(ref align_self) = el.align_self {
+        styles.push(format!("align-self: {}", align_self));
     }
     if let Some(p) = el.padding {
         styles.push(format!("padding: {}px", p));
@@ -362,6 +427,7 @@ fn render_div(el: &ElementDef) -> String {
 
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
 
     // Render children
     let children_html: String = el.children.iter().map(render_element).collect();
@@ -370,9 +436,10 @@ fn render_div(el: &ElementDef) -> String {
     let text_content = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
     format!(
-        "{}<div id=\"{}\"{}{}{}>{}{}</div>",
+        "{}<div id=\"{}\"{}{}{}{}>{}{}</div>",
         state_styles,
-        escape_html(&el.id),
+        escape_html(get_element_id(el)),
+        data_id_attr,
         class_attr,
         style_attr,
         event_attrs,
@@ -402,6 +469,9 @@ fn render_text(el: &ElementDef) -> String {
     if let Some(p) = el.padding {
         styles.push(format!("padding: {}px", p));
     }
+    if let Some(ref transition) = el.transition {
+        styles.push(format!("transition: {}", transition));
+    }
 
     let style_attr = if styles.is_empty() {
         String::new()
@@ -411,9 +481,16 @@ fn render_text(el: &ElementDef) -> String {
 
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
     let text = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
-    format!("{}<span id=\"{}\"{}{}>{}</span>", state_styles, escape_html(&el.id), style_attr, event_attrs, text)
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
+    format!("{}<span id=\"{}\"{}{}{}{}>{}</span>", state_styles, escape_html(get_element_id(el)), data_id_attr, class_attr, style_attr, event_attrs, text)
 }
 
 fn render_button(el: &ElementDef) -> String {
@@ -465,6 +542,13 @@ fn render_button(el: &ElementDef) -> String {
         styles.extend(side_border_styles);
     }
 
+    if let Some(ref transition) = el.transition {
+        styles.push(format!("transition: {}", transition));
+    }
+    if let Some(opacity) = el.opacity {
+        styles.push(format!("opacity: {}", opacity));
+    }
+
     // Append any raw CSS provided via ElementDef.style (rewrite url(...) references)
     if let Some(ref raw) = el.style {
         let rewritten = rewrite_css_urls(raw);
@@ -474,12 +558,21 @@ fn render_button(el: &ElementDef) -> String {
     let style_attr = format!(" style=\"{}\"", styles.join("; "));
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
     let text = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
     format!(
-        "{}<button id=\"{}\"{}{}>{}</button>",
+        "{}<button id=\"{}\"{}{}{}{}>{}</button>",
         state_styles,
-        escape_html(&el.id),
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
         style_attr,
         event_attrs,
         text
@@ -532,6 +625,7 @@ fn render_image(el: &ElementDef) -> String {
 
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
     // Resolve image src: if it's not an http(s)/data/file URL, try to
     // interpret it as a local path and convert to a file:// URL so the
     // webview can load local assets by relative path.
@@ -542,10 +636,18 @@ fn render_image(el: &ElementDef) -> String {
         .map(|a| format!(" alt=\"{}\"", escape_html(a)))
         .unwrap_or_default();
 
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
     format!(
-        "{}<img id=\"{}\" src=\"{}\"{}{}{}/>",
+        "{}<img id=\"{}\"{}{}src=\"{}\"{}{}{}/>",
         state_styles,
-        escape_html(&el.id),
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
         src,
         alt_attr,
         style_attr,
@@ -591,6 +693,9 @@ fn render_input(el: &ElementDef) -> String {
         styles.retain(|s| !s.starts_with("padding:"));
         styles.push(format!("padding: {}px", p));
     }
+    if let Some(ref transition) = el.transition {
+        styles.push(format!("transition: {}", transition));
+    }
 
     let style_attr = format!(" style=\"{}\"", styles.join("; "));
 
@@ -602,6 +707,7 @@ fn render_input(el: &ElementDef) -> String {
 
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
 
     let value_attr = el.value.as_ref()
         .map(|v| format!(" value=\"{}\"", escape_html(v)))
@@ -611,15 +717,198 @@ fn render_input(el: &ElementDef) -> String {
         .map(|p| format!(" placeholder=\"{}\"", escape_html(p)))
         .unwrap_or_default();
 
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
     format!(
-        "{}<input id=\"{}\" type=\"text\"{}{}{}{}{}/>",
+        "{}<input id=\"{}\"{}{}type=\"text\"{}{}{}{}{}/>",
         state_styles,
-        escape_html(&el.id),
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
         style_attr,
         oninput_attr,
         event_attrs,
         value_attr,
         placeholder_attr
+    )
+}
+
+fn render_checkbox(el: &ElementDef) -> String {
+    let checked_attr = if el.checked.unwrap_or(false) { " checked" } else { "" };
+
+    let onchange_attr = if let Some(ref cb_id) = el.on_change {
+        format!(" onchange=\"handleChange('{}', this.checked)\"", escape_html(cb_id))
+    } else {
+        String::new()
+    };
+
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
+
+    let label_html = el.label.as_ref()
+        .map(|l| format!("<span style=\"margin-left: 8px\">{}</span>", escape_html(l)))
+        .unwrap_or_default();
+
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
+    // Build input styles for dark mode visibility
+    let accent_color = el.background_color.as_deref().unwrap_or("#3b82f6");
+    let input_style = format!(
+        "width: 18px; height: 18px; accent-color: {}; cursor: pointer",
+        accent_color
+    );
+
+    format!(
+        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: pointer\"{}><input type=\"checkbox\" style=\"{}\"{}{}/>{}</label>",
+        state_styles,
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
+        event_attrs,
+        input_style,
+        checked_attr,
+        onchange_attr,
+        label_html
+    )
+}
+
+fn render_radio(el: &ElementDef) -> String {
+    let checked_attr = if el.checked.unwrap_or(false) { " checked" } else { "" };
+
+    let name_attr = el.radio_group.as_ref()
+        .map(|g| format!(" name=\"{}\"", escape_html(g)))
+        .unwrap_or_default();
+
+    let value_attr = el.value.as_ref()
+        .map(|v| format!(" value=\"{}\"", escape_html(v)))
+        .unwrap_or_default();
+
+    let onchange_attr = if let Some(ref cb_id) = el.on_change {
+        format!(" onchange=\"handleChange('{}', this.value)\"", escape_html(cb_id))
+    } else {
+        String::new()
+    };
+
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
+
+    let label_html = el.label.as_ref()
+        .map(|l| format!("<span style=\"margin-left: 8px\">{}</span>", escape_html(l)))
+        .unwrap_or_default();
+
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
+    // Build input styles for dark mode visibility
+    let accent_color = el.background_color.as_deref().unwrap_or("#3b82f6");
+    let input_style = format!(
+        "width: 18px; height: 18px; accent-color: {}; cursor: pointer",
+        accent_color
+    );
+
+    format!(
+        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: pointer\"{}><input type=\"radio\" style=\"{}\"{}{}{}{}/>{}</label>",
+        state_styles,
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
+        event_attrs,
+        input_style,
+        name_attr,
+        value_attr,
+        checked_attr,
+        onchange_attr,
+        label_html
+    )
+}
+
+fn render_select(el: &ElementDef) -> String {
+    let mut styles = vec![
+        "padding: 8px 12px".to_string(),
+        "font-size: 14px".to_string(),
+        "cursor: pointer".to_string(),
+    ];
+
+    if let Some(w) = el.width {
+        styles.push(format!("width: {}px", w));
+    }
+    if let Some(ref bg) = el.background_color {
+        styles.retain(|s| !s.starts_with("background:"));
+        styles.push(format!("background: {}", bg));
+    }
+    if let Some(ref tc) = el.text_color {
+        styles.retain(|s| !s.starts_with("color:"));
+        styles.push(format!("color: {}", tc));
+    }
+    if let Some(br) = el.border_radius {
+        styles.retain(|s| !s.starts_with("border-radius:"));
+        styles.push(format!("border-radius: {}px", br));
+    }
+    if let (Some(bw), Some(bc)) = (el.border_width, &el.border_color) {
+        styles.push(format!("border: {}px solid {}", bw, bc));
+    }
+    if let Some(ref transition) = el.transition {
+        styles.push(format!("transition: {}", transition));
+    }
+
+    // Append raw CSS if provided
+    if let Some(ref raw) = el.style {
+        styles.push(raw.clone());
+    }
+
+    let style_attr = format!(" style=\"{}\"", styles.join("; "));
+
+    let onchange_attr = if let Some(ref cb_id) = el.on_change {
+        format!(" onchange=\"handleChange('{}', this.value)\"", escape_html(cb_id))
+    } else {
+        String::new()
+    };
+
+    let event_attrs = build_event_attrs(el);
+    let state_styles = build_state_styles(el);
+    let data_id_attr = build_data_id_attr(el);
+
+    // Build options HTML
+    let options_html: String = el.options.iter().map(|opt| {
+        let selected = el.selected.as_ref().map(|s| s == &opt.value).unwrap_or(false);
+        let selected_attr = if selected { " selected" } else { "" };
+        format!(
+            "<option value=\"{}\"{}>{}</option>",
+            escape_html(&opt.value),
+            selected_attr,
+            escape_html(&opt.label)
+        )
+    }).collect();
+
+    let class_attr = if el.class_names.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", el.class_names.join(" "))
+    };
+
+    format!(
+        "{}<select id=\"{}\"{}{}{}{}{}>{}</select>",
+        state_styles,
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
+        style_attr,
+        onchange_attr,
+        event_attrs,
+        options_html
     )
 }
 

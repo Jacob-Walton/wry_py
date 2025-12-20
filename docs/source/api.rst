@@ -24,6 +24,18 @@ Functions
 
    Returns an ``ElementBuilder`` for an image.
 
+.. function:: checkbox(label: str = None)
+
+   Returns an ``ElementBuilder`` for a checkbox with optional label.
+
+.. function:: radio(label: str = None)
+
+   Returns an ``ElementBuilder`` for a radio button with optional label.
+
+.. function:: select()
+
+   Returns an ``ElementBuilder`` for a dropdown select.
+
 UiWindow
 --------
 
@@ -41,6 +53,12 @@ UiWindow
    .. method:: set_title(title: str)
 
       Change the window title.
+
+   .. method:: update_element(element_id: str, element: Element)
+
+      Update a single element by ID. More efficient than ``set_root()`` when
+      only a small part of the UI changes. The element must have an ID set
+      via the ``id()`` builder method.
 
    .. method:: run()
 
@@ -133,6 +151,9 @@ Factory Methods
 .. classmethod:: ElementBuilder.button(label: str)
 .. classmethod:: ElementBuilder.image(src: str)
 .. classmethod:: ElementBuilder.input()
+.. classmethod:: ElementBuilder.checkbox(label: str = None)
+.. classmethod:: ElementBuilder.radio(label: str = None)
+.. classmethod:: ElementBuilder.select()
 
 Size
 ^^^^
@@ -143,6 +164,30 @@ Size
 .. method:: size_full()
 
    Sets width and height to 100%.
+
+.. method:: full_width()
+
+   Sets width to 100%.
+
+.. method:: full_height()
+
+   Sets height to 100%.
+
+.. method:: min_width(w: float)
+
+   Minimum width in pixels.
+
+.. method:: max_width(w: float)
+
+   Maximum width in pixels.
+
+.. method:: min_height(h: float)
+
+   Minimum height in pixels.
+
+.. method:: max_height(h: float)
+
+   Maximum height in pixels.
 
 Layout
 ^^^^^^
@@ -170,6 +215,65 @@ Layout
 .. method:: gap(g: float)
 
    Gap between children in pixels.
+
+.. method:: flex_wrap()
+
+   Allow flex items to wrap to multiple lines.
+
+.. method:: flex_nowrap()
+
+   Prevent flex items from wrapping.
+
+.. method:: flex_grow(value: float)
+
+   Set flex grow factor.
+
+.. method:: flex_shrink(value: float)
+
+   Set flex shrink factor.
+
+.. method:: flex_basis(value: str)
+
+   Set flex basis (initial size).
+
+.. method:: flex_1()
+
+   Shorthand for ``flex-grow: 1; flex-shrink: 1; flex-basis: 0%``.
+
+.. method:: align_self(value: str)
+
+   Align this item differently from siblings.
+
+Grid
+^^^^
+
+.. method:: grid()
+
+   Enable CSS grid layout on this element.
+
+.. method:: grid_cols(value: str)
+
+   Set grid template columns (e.g., ``"1fr 1fr 1fr"`` or ``"repeat(3, 1fr)"``).
+
+.. method:: grid_rows(value: str)
+
+   Set grid template rows (e.g., ``"auto 1fr auto"``).
+
+.. method:: col(value: str)
+
+   Set which column(s) this item spans (e.g., ``"1 / 3"`` or ``"span 2"``).
+
+.. method:: row(value: str)
+
+   Set which row(s) this item spans (e.g., ``"1 / 3"`` or ``"span 2"``).
+
+.. method:: place_items(value: str)
+
+   Set alignment for grid items (e.g., ``"center"``).
+
+.. method:: place_center()
+
+   Center grid items both horizontally and vertically.
 
 Padding
 ^^^^^^^
@@ -228,13 +332,13 @@ Styling
 
 .. method:: bg(color: str)
 
-   Background color (hex or CSS).
+   Background color (hex or CSS). For checkboxes/radios, sets the accent color.
 
 .. method:: text_color(color: str)
 .. method:: rounded(radius: float)
 
    Border radius in pixels.
- 
+
 .. method:: rounded_tl(radius: float)
 
    Set top-left corner radius (pixels).
@@ -376,6 +480,10 @@ Events
 
    Register an input handler. Receives the current value.
 
+.. method:: on_change(callback: Callable[[str], None])
+
+   Register a change handler for checkbox, radio, or select. Receives the new value.
+
 .. method:: on_mouse_enter(callback: Callable[[], None])
 
    Register a handler for mouse enter.
@@ -413,6 +521,43 @@ Input
 .. method:: placeholder(text: str)
 
    Set placeholder text.
+
+Checkbox / Radio
+^^^^^^^^^^^^^^^^
+
+.. method:: checked(checked: bool)
+
+   Set checked state.
+
+.. method:: group(name: str)
+
+   Set radio button group name. Radio buttons with the same group are mutually exclusive.
+
+Select
+^^^^^^
+
+.. method:: option(value: str, label: str)
+
+   Add an option to a select dropdown.
+
+.. method:: selected(value: str)
+
+   Set the selected option value.
+
+Identification
+^^^^^^^^^^^^^^
+
+.. method:: id(id: str)
+
+   Set an ID for targeting with ``update_element()``.
+
+.. method:: class_name(name: str)
+
+   Add a CSS class name.
+
+.. method:: classes(names: list[str])
+
+   Add multiple CSS class names.
 
 Build
 ^^^^^

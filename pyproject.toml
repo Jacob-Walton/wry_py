@@ -4,8 +4,8 @@ build-backend = "maturin"
 
 [project]
 name = "wry_py"
-version = "0.1.7"
-description = "Python bindings for Wry/Tao"
+version = "0.2.0"
+description = "Python bindings for Wry"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -27,3 +27,9 @@ Documentation = "https://jacob-walton.github.io/wry_py/"
 manifest-path = "rust/Cargo.toml"
 features = ["pyo3/extension-module"]
 module-name = "wry_py"
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

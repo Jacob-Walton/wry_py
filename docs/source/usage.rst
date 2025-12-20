@@ -28,6 +28,39 @@ Space between:
 
    div().h_flex().justify_between()
 
+Grid Layout
+-----------
+
+Basic 3-column grid:
+
+.. code-block:: python
+
+   div().grid_cols("1fr 1fr 1fr").gap(16)
+
+Responsive-style grid with auto-fill:
+
+.. code-block:: python
+
+   div().grid_cols("repeat(auto-fill, minmax(200px, 1fr))").gap(16)
+
+Item spanning multiple columns:
+
+.. code-block:: python
+
+   div().col("span 2")  # Spans 2 columns
+
+2x2 grid with centered items:
+
+.. code-block:: python
+
+   (
+       div()
+       .grid_cols("1fr 1fr")
+       .grid_rows("1fr 1fr")
+       .gap(20)
+       .place_center()
+   )
+
 Styling
 -------
 
@@ -90,6 +123,44 @@ Image with hover scale:
    .transition_transform(0.3)
    .hover_scale(1.05)
 
+Partial Updates
+---------------
+
+Instead of replacing the entire UI with ``set_root()``, you can update
+individual elements using ``id()`` and ``update_element()``:
+
+.. code-block:: python
+
+   from wry_py import UiWindow, div, text, button
+
+   count = 0
+   window = UiWindow(title="Counter", width=400, height=300)
+
+   def make_counter():
+       return text(f"Count: {count}").id("counter").text_size(32).build()
+
+   def increment():
+       global count
+       count += 1
+       window.update_element("counter", make_counter())
+
+   root = (
+       div()
+       .size_full()
+       .v_flex()
+       .items_center()
+       .justify_center()
+       .gap(20)
+       .child(make_counter())
+       .child_builder(button("+").on_click(increment))
+       .build()
+   )
+
+   window.set_root(root)
+   window.run()
+
+This is more efficient when only a small part of the UI changes.
+
 Local images
 ------------
 
@@ -143,6 +214,61 @@ Text Input
        .padding(8, 12)
        .border(1, "#ccc")
        .on_input(on_input)
+   )
+
+Checkbox
+--------
+
+.. code-block:: python
+
+   from wry_py import checkbox
+
+   def on_change(checked: str):
+       # checked is "true" or "false" as string
+       print(f"Checked: {checked == 'true'}")
+
+   checkbox("Accept terms").checked(False).on_change(on_change)
+
+Radio Buttons
+-------------
+
+Radio buttons with the same ``group()`` are mutually exclusive:
+
+.. code-block:: python
+
+   from wry_py import div, radio
+
+   selected = "email"
+
+   def on_change(value: str):
+       global selected
+       selected = value
+
+   (
+       div().v_flex().gap(8)
+       .child_builder(radio("Email").group("contact").value("email").checked(True).on_change(on_change))
+       .child_builder(radio("Phone").group("contact").value("phone").on_change(on_change))
+       .child_builder(radio("SMS").group("contact").value("sms").on_change(on_change))
+   )
+
+Select Dropdown
+---------------
+
+.. code-block:: python
+
+   from wry_py import select
+
+   def on_change(value: str):
+       print(f"Selected: {value}")
+
+   (
+       select()
+       .option("", "Choose...")
+       .option("us", "United States")
+       .option("uk", "United Kingdom")
+       .option("ca", "Canada")
+       .selected("us")
+       .on_change(on_change)
    )
 
 Form Example
