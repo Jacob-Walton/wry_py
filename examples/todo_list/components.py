@@ -1,7 +1,8 @@
+from typing import Callable
 from wry_py import div, text, button, input
 
 
-def header(title: str, on_add):
+def header(title: str, on_add: Callable[[], None]):
     return (
         div()
         .h_flex()
@@ -23,7 +24,7 @@ def header(title: str, on_add):
     )
 
 
-def item_row(item: str, on_remove):
+def item_row(item: str, on_remove: Callable[[], None]):
     return (
         div()
         .h_flex()
@@ -44,7 +45,7 @@ def item_row(item: str, on_remove):
     )
 
 
-def item_list(items: list[str], on_remove):
+def item_list(items: list[str], on_remove: Callable[[int], None]):
     container = div().v_flex().gap(8)
 
     if not items:
@@ -70,7 +71,7 @@ def empty_state():
     )
 
 
-def dialog(title: str, on_input, on_cancel, on_confirm):
+def dialog(title: str, on_input: Callable[[str], None], on_cancel: Callable[[], None], on_confirm: Callable[[], None]):
     return (
         div()
         .absolute()
@@ -85,7 +86,7 @@ def dialog(title: str, on_input, on_cancel, on_confirm):
     )
 
 
-def dialog_card(title: str, on_input, on_cancel, on_confirm):
+def dialog_card(title: str, on_input: Callable[[str], None], on_cancel: Callable[[], None], on_confirm: Callable[[], None]):
     return (
         div()
         .bg("#fff")
@@ -111,7 +112,7 @@ def dialog_card(title: str, on_input, on_cancel, on_confirm):
     )
 
 
-def dialog_buttons(on_cancel, on_confirm):
+def dialog_buttons(on_cancel: Callable[[], None], on_confirm: Callable[[], None]):
     return (
         div()
         .h_flex()

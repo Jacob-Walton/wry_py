@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .wry_py import UiWindow
+    from .wry_py import UiWindow, Element
 
 
 class AppBase:
@@ -41,7 +41,7 @@ class AppBase:
         # block until the window closes.
         self.window.run()
 
-    def set_root(self, element) -> None:
+    def set_root(self, element: Element) -> None:
         """Convenience: set the window root element.
 
         Raises `RuntimeError` if no window attached.

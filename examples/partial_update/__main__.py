@@ -4,6 +4,7 @@ Demonstrates using id() and update_element() to update only specific
 parts of the UI instead of replacing the entire root element.
 """
 
+from typing import Callable
 from wry_py import UiWindow, div, text, button
 
 count = 0
@@ -40,7 +41,8 @@ def reset():
     window.update_element("counter", make_counter())
 
 
-def make_button(label, callback, color):
+
+def make_button(label: str, callback: Callable[[], None], color: str):
     return (
         button(label)
         .padding(12, 24)

@@ -1,8 +1,5 @@
 import json
-try:
-    import wry_py
-except ImportError:
-    print("wry_py module not found. Ensure it is installed and accessible.")
+import wry_py
 
 
 def test_text_and_button_elements():

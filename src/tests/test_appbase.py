@@ -15,7 +15,7 @@ def test_appbase_run_calls_render_and_runs_window():
         def __init__(self):
             self.root = None
 
-        def set_root(self, root):
+        def set_root(self, root: wry_py.Element):
             self.root = root
 
         def run(self):

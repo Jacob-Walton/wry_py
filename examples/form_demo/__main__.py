@@ -4,10 +4,21 @@ Demonstrates all form elements: input, checkbox, radio, and select.
 """
 
 from wry_py import UiWindow, div, text, button, input, checkbox, radio, select
+from typing import Optional, TypedDict, List
 
 # Form state
 step = 1
-form_data = {
+class FormData(TypedDict):
+    name: str
+    email: str
+    notifications: bool
+    newsletter: bool
+    contact_method: str
+    experience: str
+    country: str
+    interests: List[str]
+
+form_data: FormData = {
     "name": "",
     "email": "",
     "notifications": False,
@@ -27,9 +38,10 @@ form_errors = {
 }
 window = UiWindow(title="Form Demo", width=500, height=500)
 
+
 def validate_current_step():
     """Validates the current step's data."""
-    errors = []
+    errors: list[str] = []
     if step == 1:
         # clear previous errors for step 1
         form_errors["name"] = ""
@@ -58,6 +70,7 @@ def validate_current_step():
 
     return {"message": "valid"}
 
+
 def next_step():
     global step
     if step < 4:
@@ -76,6 +89,7 @@ def prev_step():
 
 def submit_form():
     global step
+    print("Form submitted with data:", form_data)
     step = 5
     render()
 
@@ -133,19 +147,12 @@ def make_header():
                 )
             )
             .child_builder(
-                text(label)
-                .text_size(11)
-                .text_color("#fff" if is_active else "#888")
+                text(label).text_size(11).text_color("#fff" if is_active else "#888")
             )
         )
         step_indicators = step_indicators.child_builder(indicator)
 
-    return (
-        div()
-        .padding(20)
-        .border_bottom(1, "#333")
-        .child_builder(step_indicators)
-    )
+    return div().padding(20).border_bottom(1, "#333").child_builder(step_indicators)
 
 
 def make_step_1():
@@ -229,7 +236,9 @@ def make_step_2():
             div()
             .v_flex()
             .gap(12)
-            .child_builder(text("Preferred contact method").text_size(14).text_color("#aaa"))
+            .child_builder(
+                text("Preferred contact method").text_size(14).text_color("#aaa")
+            )
             .child_builder(
                 radio("Email")
                 .group("contact")
@@ -375,7 +384,7 @@ def make_step_4():
         "devops": "DevOps",
     }
 
-    def info_row(label, value):
+    def info_row(label: str, value: Optional[str]):
         return (
             div()
             .h_flex()
@@ -386,15 +395,18 @@ def make_step_4():
             .child_builder(text(value or "Not provided").text_color("#fff"))
         )
 
-    interests_str = ", ".join(
-        interest_labels.get(i, str(i)) for i in form_data["interests"]
-    ) or "None selected"
+    interests_str = (
+        ", ".join(interest_labels.get(i, str(i)) for i in form_data["interests"])
+        or "None selected"
+    )
 
     return (
         div()
         .v_flex()
         .gap(16)
-        .child_builder(text("Review Your Information").text_size(20).text_weight("bold"))
+        .child_builder(
+            text("Review Your Information").text_size(20).text_weight("bold")
+        )
         .child_builder(
             div()
             .v_flex()
@@ -403,11 +415,32 @@ def make_step_4():
             .padding(16)
             .child_builder(info_row("Name", form_data["name"]))
             .child_builder(info_row("Email", form_data["email"]))
-            .child_builder(info_row("Notifications", "Enabled" if form_data["notifications"] else "Disabled"))
-            .child_builder(info_row("Newsletter", "Subscribed" if form_data["newsletter"] else "Not subscribed"))
-            .child_builder(info_row("Contact Method", form_data["contact_method"].title()))
-            .child_builder(info_row("Experience", experience_labels.get(form_data["experience"], "Not selected")))
-            .child_builder(info_row("Country", country_labels.get(form_data["country"], "Not selected")))
+            .child_builder(
+                info_row(
+                    "Notifications",
+                    "Enabled" if form_data["notifications"] else "Disabled",
+                )
+            )
+            .child_builder(
+                info_row(
+                    "Newsletter",
+                    "Subscribed" if form_data["newsletter"] else "Not subscribed",
+                )
+            )
+            .child_builder(
+                info_row("Contact Method", form_data["contact_method"].title())
+            )
+            .child_builder(
+                info_row(
+                    "Experience",
+                    experience_labels.get(form_data["experience"], "Not selected"),
+                )
+            )
+            .child_builder(
+                info_row(
+                    "Country", country_labels.get(form_data["country"], "Not selected")
+                )
+            )
             .child_builder(info_row("Interests", interests_str))
         )
     )
@@ -435,9 +468,7 @@ def make_success():
         )
         .child_builder(text("Form Submitted!").text_size(24).text_weight("bold"))
         .child_builder(
-            text("Thank you for completing the form.")
-            .text_color("#888")
-            .text_center()
+            text("Thank you for completing the form.").text_color("#888").text_center()
         )
         .child_builder(
             button("Start Over")
@@ -495,14 +526,14 @@ def make_nav_buttons():
     return buttons
 
 
-def update_field(field, value):
+def update_field(field: str, value: object):
     form_data[field] = value
     # clear any existing error for this field when the user updates it
     if field in form_errors:
         form_errors[field] = ""
 
 
-def toggle_interest(interest, checked):
+def toggle_interest(interest: str, checked: bool):
     if checked and interest not in form_data["interests"]:
         form_data["interests"].append(interest)
     elif not checked and interest in form_data["interests"]:
@@ -512,14 +543,7 @@ def toggle_interest(interest, checked):
 def render():
     if step == 5:
         content = make_success()
-        root = (
-            div()
-            .size_full()
-            .v_flex()
-            .bg("#171717")
-            .child_builder(content)
-            .build()
-        )
+        root = div().size_full().v_flex().bg("#171717").child_builder(content).build()
     else:
         step_content = {
             1: make_step_1,
