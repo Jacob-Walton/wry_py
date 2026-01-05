@@ -422,6 +422,14 @@ Effects
 
    Set cursor style (``"pointer"``, ``"grab"``, ``"not-allowed"``).
 
+.. method:: style(css: str)
+
+   Apply raw CSS styles directly. Multiple calls append to existing styles.
+
+   .. code-block:: python
+
+      div().style("box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1)")
+
 Hover Styles
 ^^^^^^^^^^^^
 

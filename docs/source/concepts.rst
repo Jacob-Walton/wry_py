@@ -38,6 +38,9 @@ Element Types
 - ``button(label)`` - Button with click handler
 - ``input()`` - Text input with input handler
 - ``image(src)`` - Image
+- ``checkbox(label)`` - Checkbox with optional label
+- ``radio(label)`` - Radio button with optional label
+- ``select()`` - Dropdown select
 
 Styling States
 --------------
