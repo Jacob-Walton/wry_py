@@ -647,6 +647,11 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
         .justify-between {{ justify-content: space-between; }}
         .justify-start {{ justify-content: flex-start; }}
         .justify-end {{ justify-content: flex-end; }}
+        button:focus, button:focus-visible,
+        input:focus, input:focus-visible,
+        select:focus, select:focus-visible {{
+            outline: none;
+        }}
     </style>
 </head>
 <body>
@@ -700,7 +705,48 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
 
         function buildStyleString(t) {{
             var s = [];
-            if (t.size_full) {{ s.push('width: 100%'); s.push('height: 100%'); }}
+            
+            // Element-type specific defaults
+            if (t.element_type === 'button') {{
+                s.push('cursor: ' + (t.cursor || 'pointer'));
+                s.push('border: ' + (t.border_width != null ? t.border_width + 'px solid ' + (t.border_color || '#333') : 'none'));
+                s.push('outline: none');
+                s.push('font-size: ' + (t.font_size != null ? t.font_size + 'px' : '14px'));
+                s.push('background: ' + (t.background_color || '#3b82f6'));
+                s.push('color: ' + (t.text_color || 'white'));
+                s.push('border-radius: ' + (t.border_radius != null ? t.border_radius + 'px' : '6px'));
+                s.push('padding: ' + (t.padding != null ? t.padding + 'px' : '8px 16px'));
+            }} else if (t.element_type === 'input') {{
+                s.push('outline: none');
+                s.push('padding: ' + (t.padding != null ? t.padding + 'px' : '8px 12px'));
+                s.push('border: ' + (t.border_width != null ? t.border_width + 'px solid ' + (t.border_color || '#555') : '1px solid #555'));
+                s.push('border-radius: ' + (t.border_radius != null ? t.border_radius + 'px' : '4px'));
+                s.push('background: ' + (t.background_color || '#2a2a3a'));
+                s.push('color: ' + (t.text_color || 'white'));
+                s.push('font-size: ' + (t.font_size != null ? t.font_size + 'px' : '14px'));
+                if (t.cursor) s.push('cursor: ' + t.cursor);
+            }} else if (t.element_type === 'select') {{
+                s.push('outline: none');
+                s.push('padding: ' + (t.padding != null ? t.padding + 'px' : '8px 12px'));
+                s.push('font-size: ' + (t.font_size != null ? t.font_size + 'px' : '14px'));
+                s.push('cursor: ' + (t.cursor || 'pointer'));
+                if (t.background_color) s.push('background: ' + t.background_color);
+                if (t.text_color) s.push('color: ' + t.text_color);
+                if (t.border_radius != null) s.push('border-radius: ' + t.border_radius + 'px');
+                if (t.border_width != null) s.push('border: ' + t.border_width + 'px solid ' + (t.border_color || '#333'));
+            }} else {{
+                // Generic elements (div, span, etc.)
+                if (t.size_full) {{ s.push('width: 100%'); s.push('height: 100%'); }}
+                if (t.background_color) s.push('background-color: ' + t.background_color);
+                if (t.text_color) s.push('color: ' + t.text_color);
+                if (t.border_radius != null) s.push('border-radius: ' + t.border_radius + 'px');
+                if (t.border_width != null && t.border_color) s.push('border: ' + t.border_width + 'px solid ' + t.border_color);
+                if (t.padding != null) s.push('padding: ' + t.padding + 'px');
+                if (t.font_size != null) s.push('font-size: ' + t.font_size + 'px');
+                if (t.cursor) s.push('cursor: ' + t.cursor);
+            }}
+            
+            // Common properties for all element types
             if (t.width != null) s.push('width: ' + t.width + 'px');
             if (t.height != null) s.push('height: ' + t.height + 'px');
             if (t.min_width != null) s.push('min-width: ' + t.min_width + 'px');
@@ -722,7 +768,6 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             if (t.grid_column) s.push('grid-column: ' + t.grid_column);
             if (t.grid_row) s.push('grid-row: ' + t.grid_row);
             if (t.place_items) s.push('place-items: ' + t.place_items);
-            if (t.padding != null) s.push('padding: ' + t.padding + 'px');
             if (t.padding_top != null) s.push('padding-top: ' + t.padding_top + 'px');
             if (t.padding_right != null) s.push('padding-right: ' + t.padding_right + 'px');
             if (t.padding_bottom != null) s.push('padding-bottom: ' + t.padding_bottom + 'px');
@@ -732,14 +777,10 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             if (t.margin_right != null) s.push('margin-right: ' + t.margin_right + 'px');
             if (t.margin_bottom != null) s.push('margin-bottom: ' + t.margin_bottom + 'px');
             if (t.margin_left != null) s.push('margin-left: ' + t.margin_left + 'px');
-            if (t.background_color) s.push('background-color: ' + t.background_color);
-            if (t.text_color) s.push('color: ' + t.text_color);
-            if (t.border_radius != null) s.push('border-radius: ' + t.border_radius + 'px');
             if (t.border_radius_top_left != null) s.push('border-top-left-radius: ' + t.border_radius_top_left + 'px');
             if (t.border_radius_top_right != null) s.push('border-top-right-radius: ' + t.border_radius_top_right + 'px');
             if (t.border_radius_bottom_right != null) s.push('border-bottom-right-radius: ' + t.border_radius_bottom_right + 'px');
             if (t.border_radius_bottom_left != null) s.push('border-bottom-left-radius: ' + t.border_radius_bottom_left + 'px');
-            if (t.border_width != null && t.border_color) s.push('border: ' + t.border_width + 'px solid ' + t.border_color);
             if (t.border_width_top != null) s.push('border-top: ' + t.border_width_top + 'px solid ' + (t.border_color_top || t.border_color || '#333'));
             if (t.border_width_right != null) s.push('border-right: ' + t.border_width_right + 'px solid ' + (t.border_color_right || t.border_color || '#333'));
             if (t.border_width_bottom != null) s.push('border-bottom: ' + t.border_width_bottom + 'px solid ' + (t.border_color_bottom || t.border_color || '#333'));
@@ -752,11 +793,9 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             if (t.right != null) s.push('right: ' + t.right + 'px');
             if (t.bottom != null) s.push('bottom: ' + t.bottom + 'px');
             if (t.left != null) s.push('left: ' + t.left + 'px');
-            if (t.font_size != null) s.push('font-size: ' + t.font_size + 'px');
             if (t.font_weight) s.push('font-weight: ' + t.font_weight);
             if (t.transition) s.push('transition: ' + t.transition);
             if (t.opacity != null) s.push('opacity: ' + t.opacity);
-            if (t.cursor) s.push('cursor: ' + t.cursor);
             if (t.object_fit) s.push('object-fit: ' + t.object_fit);
             if (t.style) s.push(t.style);
             return s.join('; ');
@@ -767,16 +806,31 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             var css = '';
             var hover = [];
             var focus = [];
+            
+            // Add hover styles
             if (t.hover_bg) hover.push('background-color: ' + t.hover_bg + ' !important');
             if (t.hover_text_color) hover.push('color: ' + t.hover_text_color + ' !important');
             if (t.hover_border_color) hover.push('border-color: ' + t.hover_border_color + ' !important');
             if (t.hover_opacity != null) hover.push('opacity: ' + t.hover_opacity + ' !important');
             if (t.hover_scale != null) hover.push('transform: scale(' + t.hover_scale + ') !important');
+            
+            // For buttons, ensure cursor stays pointer on hover (unless disabled)
+            if (t.element_type === 'button' && !t.disabled) {{
+                hover.push('cursor: pointer !important');
+            }}
+            
+            // Add focus styles
             if (t.focus_bg) focus.push('background-color: ' + t.focus_bg + ' !important');
             if (t.focus_text_color) focus.push('color: ' + t.focus_text_color + ' !important');
             if (t.focus_border_color) focus.push('border-color: ' + t.focus_border_color + ' !important');
-            if (hover.length) css += '#' + id + ':hover {{ ' + hover.join('; ') + ' }}';
-            if (focus.length) css += '#' + id + ':focus {{ ' + focus.join('; ') + ' }}';
+            
+            // For buttons/inputs, ensure outline stays none on focus
+            if (t.element_type === 'button' || t.element_type === 'input' || t.element_type === 'select') {{
+                focus.push('outline: none !important');
+            }}
+            
+            if (hover.length) css += '#' + id + ':hover {{ ' + hover.join('; ') + ' }} ';
+            if (focus.length) css += '#' + id + ':focus {{ ' + focus.join('; ') + ' }} ';
             return css;
         }}
 
@@ -852,9 +906,17 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
                 var txt = t.text_content || '';
                 if (el.textContent !== txt) el.textContent = txt;
             }}
+            if (t.element_type === 'button') {{
+                if (t.disabled) {{
+                    el.disabled = true;
+                }} else {{
+                    el.disabled = false;
+                }}
+            }}
             if (t.element_type === 'input') {{
                 if (t.placeholder && el.placeholder !== t.placeholder) el.placeholder = t.placeholder;
                 if (t.value !== undefined && el.value !== t.value && document.activeElement !== el) el.value = t.value || '';
+                if (t.disabled !== undefined) el.disabled = !!t.disabled;
             }}
             if (t.element_type === 'image') {{
                 var src = t.text_content || '';
@@ -896,10 +958,14 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             if (t.element_type === 'text' || t.element_type === 'button') {{
                 el.textContent = t.text_content || '';
             }}
+            if (t.element_type === 'button' && t.disabled) {{
+                el.disabled = true;
+            }}
             if (t.element_type === 'input') {{
                 el.type = 'text';
                 if (t.placeholder) el.placeholder = t.placeholder;
                 if (t.value) el.value = t.value;
+                if (t.disabled) el.disabled = true;
             }}
             if (t.element_type === 'image') {{
                 el.src = t.text_content || '';

@@ -16,7 +16,16 @@ fn assign_stable_ids(element: &mut ElementDef, path: &str) {
 pub fn render_to_html(element: &ElementDef) -> String {
     let mut elem = element.clone();
     assign_stable_ids(&mut elem, "r");
-    render_element(&elem)
+    
+    // Collect all state styles into a single style block
+    let state_css = collect_state_styles(&elem);
+    let style_block = if state_css.is_empty() {
+        String::new()
+    } else {
+        format!("<style id=\"wry-state-styles\">{}</style>", state_css)
+    };
+    
+    format!("{}{}", style_block, render_element(&elem))
 }
 
 /// Serialize an ElementDef tree to JSON for DOM patching
@@ -31,9 +40,14 @@ pub fn render_to_json_partial(element: &ElementDef) -> String {
     serde_json::to_string(element).unwrap_or_default()
 }
 
-/// Build hover/focus CSS styles for an element
-fn build_state_styles(el: &ElementDef) -> String {
+/// Collect all hover/focus CSS rules from an element tree into a single CSS string
+fn collect_state_styles(element: &ElementDef) -> String {
     let mut css = String::new();
+    collect_state_styles_recursive(element, &mut css);
+    css
+}
+
+fn collect_state_styles_recursive(el: &ElementDef, css: &mut String) {
     let id = escape_html(el.user_id.as_deref().unwrap_or(&el.id));
 
     // Hover styles
@@ -72,10 +86,9 @@ fn build_state_styles(el: &ElementDef) -> String {
         css.push_str(&format!("#{}:focus {{ {} }}", id, focus_styles.join("; ")));
     }
 
-    if css.is_empty() {
-        String::new()
-    } else {
-        format!("<style>{}</style>", css)
+    // Recurse into children
+    for child in &el.children {
+        collect_state_styles_recursive(child, css);
     }
 }
 
@@ -438,15 +451,13 @@ fn render_div(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
     let children_html: String = el.children.iter().map(render_element).collect();
     let text_content = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
     format!(
-        "{}<div id=\"{}\"{}{}{}{}>{}{}</div>",
-        state_styles,
+        "<div id=\"{}\"{}{}{}{}>{}{}</div>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -489,7 +500,6 @@ fn render_text(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
     let text = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
@@ -500,8 +510,7 @@ fn render_text(el: &ElementDef) -> String {
     };
 
     format!(
-        "{}<span id=\"{}\"{}{}{}{}>{}</span>",
-        state_styles,
+        "<span id=\"{}\"{}{}{}{}>{}</span>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -575,7 +584,6 @@ fn render_button(el: &ElementDef) -> String {
 
     let style_attr = format!(" style=\"{}\"", styles.join("; "));
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
     let text = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
@@ -586,8 +594,7 @@ fn render_button(el: &ElementDef) -> String {
     };
 
     format!(
-        "{}<button id=\"{}\"{}{}{}{}>{}</button>",
-        state_styles,
+        "<button id=\"{}\"{}{}{}{}>{}</button>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -637,7 +644,6 @@ fn render_image(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
     let raw_src = el.text_content.as_ref().map(|t| t.as_str()).unwrap_or("");
@@ -654,8 +660,7 @@ fn render_image(el: &ElementDef) -> String {
     };
 
     format!(
-        "{}<img id=\"{}\"{}{}src=\"{}\"{}{}{}/>",
-        state_styles,
+        "<img id=\"{}\"{}{}src=\"{}\"{}{}{}/>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -729,7 +734,6 @@ fn render_input(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
     let value_attr = el.value.as_ref()
@@ -747,8 +751,7 @@ fn render_input(el: &ElementDef) -> String {
     };
 
     format!(
-        "{}<input id=\"{}\"{}{}type=\"text\"{}{}{}{}{}/>",
-        state_styles,
+        "<input id=\"{}\"{}{}type=\"text\"{}{}{}{}{}/>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -770,7 +773,6 @@ fn render_checkbox(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
     let label_html = el.label.as_ref()
@@ -792,8 +794,7 @@ fn render_checkbox(el: &ElementDef) -> String {
     );
 
     format!(
-        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: {}\"{}><input type=\"checkbox\" style=\"{}\"{}{}/>{}</label>",
-        state_styles,
+        "<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: {}\"{}><input type=\"checkbox\" style=\"{}\"{}{}/>{}</label>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -824,7 +825,6 @@ fn render_radio(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
     let label_html = el.label.as_ref()
@@ -846,8 +846,7 @@ fn render_radio(el: &ElementDef) -> String {
     );
 
     format!(
-        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: {}\"{}><input type=\"radio\" style=\"{}\"{}{}{}{}/>{}</label>",
-        state_styles,
+        "<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: {}\"{}><input type=\"radio\" style=\"{}\"{}{}{}{}/>{}</label>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
@@ -910,7 +909,6 @@ fn render_select(el: &ElementDef) -> String {
     };
 
     let event_attrs = build_event_attrs(el);
-    let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
     let options_html: String = el.options.iter().map(|opt| {
@@ -931,8 +929,7 @@ fn render_select(el: &ElementDef) -> String {
     };
 
     format!(
-        "{}<select id=\"{}\"{}{}{}{}{}>{}</select>",
-        state_styles,
+        "<select id=\"{}\"{}{}{}{}{}>{}</select>",
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,

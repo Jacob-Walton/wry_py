@@ -2732,7 +2732,7 @@ dependencies = [
 
 [[package]]
 name = "wry_py"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "base64 0.21.7",
  "gtk",
