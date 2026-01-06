@@ -4,9 +4,31 @@ use percent_encoding::NON_ALPHANUMERIC;
 use std::path::Path;
 use crate::assets;
 
+/// Assign stable path-based IDs to elements for consistent DOM matching
+fn assign_stable_ids(element: &mut ElementDef, path: &str) {
+    element.id = path.to_string();
+    for (i, child) in element.children.iter_mut().enumerate() {
+        assign_stable_ids(child, &format!("{}-{}", path, i));
+    }
+}
+
 /// Render an ElementDef tree to HTML string
 pub fn render_to_html(element: &ElementDef) -> String {
-    render_element(element)
+    let mut elem = element.clone();
+    assign_stable_ids(&mut elem, "r");
+    render_element(&elem)
+}
+
+/// Serialize an ElementDef tree to JSON for DOM patching
+pub fn render_to_json(element: &ElementDef) -> String {
+    let mut elem = element.clone();
+    assign_stable_ids(&mut elem, "r");
+    serde_json::to_string(&elem).unwrap_or_default()
+}
+
+/// Serialize an ElementDef to JSON without reassigning IDs (for partial updates)
+pub fn render_to_json_partial(element: &ElementDef) -> String {
+    serde_json::to_string(element).unwrap_or_default()
 }
 
 /// Build hover/focus CSS styles for an element

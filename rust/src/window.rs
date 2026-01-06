@@ -1,5 +1,5 @@
 use crate::elements::Element;
-use crate::renderer::render_to_html;
+use crate::renderer::{render_to_html, render_to_json, render_to_json_partial};
 use parking_lot::Mutex;
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -24,8 +24,8 @@ use {
 /// Custom events we can send to the event loop
 #[derive(Debug, Clone)]
 pub enum UserEvent {
-    UpdateRoot(String),            // HTML content for full root replacement
-    UpdateElement(String, String), // (element_id, html) for partial update
+    PatchRoot(String),             // JSON content for DOM patching
+    PatchElement(String, String),  // (element_id, json) for partial update
     SetTitle(String),
     Close,
 }
@@ -35,7 +35,7 @@ struct WebViewState {
     callbacks: HashMap<String, Py<PyAny>>,
     pending_html: Option<String>,
     pending_title: Option<String>,
-    pending_element_updates: Vec<(String, String)>, // (id, html) pairs
+    pending_element_updates: Vec<(String, String)>, // (id, json) pairs
     should_close: bool,
 }
 
@@ -97,30 +97,24 @@ impl UiWindow {
 
     /// Set the root element and update the webview.
     ///
-    /// This updates what's displayed in the window. Can be called before or after run().
-    ///
-    /// Args:
-    ///     element: The root Element to display.
+    /// Uses DOM patching to preserve CSS transitions and element state.
     #[pyo3(text_signature = "(self, element)")]
     fn set_root(&self, element: &Element) -> PyResult<()> {
-        // Register callbacks from element
-        let html = {
-            let mut state = self.state.lock();
-            for (id, callback) in element.collect_callbacks() {
-                state.callbacks.insert(id, callback);
+        let is_running = self.event_proxy.lock().is_some();
+
+        let mut state = self.state.lock();
+        for (id, callback) in element.collect_callbacks() {
+            state.callbacks.insert(id, callback);
+        }
+
+        if is_running {
+            let json = render_to_json(&element.def);
+            drop(state);
+            if let Some(proxy) = self.event_proxy.lock().as_ref() {
+                let _ = proxy.send_event(UserEvent::PatchRoot(json));
             }
-
-            // Render element to HTML
-            let html = render_to_html(&element.def);
-
-            // Store as pending if not running yet
-            state.pending_html = Some(html.clone());
-            html
-        };
-
-        // Send update to webview if already running
-        if let Some(proxy) = self.event_proxy.lock().as_ref() {
-            let _ = proxy.send_event(UserEvent::UpdateRoot(html));
+        } else {
+            state.pending_html = Some(render_to_html(&element.def));
         }
 
         Ok(())
@@ -152,24 +146,22 @@ impl UiWindow {
     ///     element: The new Element to replace the existing one.
     #[pyo3(text_signature = "(self, element_id, element)")]
     fn update_element(&self, element_id: String, element: &Element) -> PyResult<()> {
-        // Register callbacks from element
-        let html = {
+        let json = {
             let mut state = self.state.lock();
             for (id, callback) in element.collect_callbacks() {
                 state.callbacks.insert(id, callback);
             }
 
-            // Render element to HTML
-            let html = render_to_html(&element.def);
+            let json = render_to_json_partial(&element.def);
 
             // Store as pending for Linux polling
-            state.pending_element_updates.push((element_id.clone(), html.clone()));
-            html
+            state.pending_element_updates.push((element_id.clone(), json.clone()));
+            json
         };
 
         // Send update to webview if already running
         if let Some(proxy) = self.event_proxy.lock().as_ref() {
-            let _ = proxy.send_event(UserEvent::UpdateElement(element_id, html));
+            let _ = proxy.send_event(UserEvent::PatchElement(element_id, json));
         }
 
         Ok(())
@@ -358,18 +350,15 @@ fn run_event_loop(
         // Check for events
         while let Ok(event) = event_rx.borrow().try_recv() {
             match event {
-                UserEvent::UpdateRoot(html) => {
-                    let js = format!(
-                        "document.getElementById('root').innerHTML = {};",
-                        serde_json::to_string(&html).unwrap()
-                    );
+                UserEvent::PatchRoot(json) => {
+                    let js = format!("patchRoot({});", json);
                     let _ = webview_for_poll.evaluate_script(&js);
                 }
-                UserEvent::UpdateElement(id, html) => {
+                UserEvent::PatchElement(id, json) => {
                     let js = format!(
-                        "updateElementById({}, {});",
+                        "patchElementById({}, {});",
                         serde_json::to_string(&id).unwrap(),
-                        serde_json::to_string(&html).unwrap()
+                        json
                     );
                     let _ = webview_for_poll.evaluate_script(&js);
                 }
@@ -402,14 +391,12 @@ fn run_event_loop(
     glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
         let mut state = state_for_poll.lock();
 
-        // Check for pending HTML update
-        if let Some(html) = state.pending_html.take() {
-            let _ = event_tx.send(UserEvent::UpdateRoot(html));
-        }
+        // Clear pending_html on first poll (already used for initial render)
+        state.pending_html.take();
 
         // Check for pending element updates
-        for (id, html) in state.pending_element_updates.drain(..) {
-            let _ = event_tx.send(UserEvent::UpdateElement(id, html));
+        for (id, json) in state.pending_element_updates.drain(..) {
+            let _ = event_tx.send(UserEvent::PatchElement(id, json));
         }
 
         // Check for pending title update
@@ -545,13 +532,8 @@ fn run_event_loop(
         .build(&window)
         .map_err(|e| e.to_string())?;
 
-    {
-        let state = state.lock();
-        if let Some(ref html) = state.pending_html {
-            let js = format!("document.getElementById('root').innerHTML = `{}`;", html.replace('`', "\\`"));
-            let _ = webview.evaluate_script(&js);
-        }
-    }
+    // Clear pending_html (already used for initial render)
+    state.lock().pending_html.take();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -566,18 +548,15 @@ fn run_event_loop(
             }
 
             Event::UserEvent(user_event) => match user_event {
-                UserEvent::UpdateRoot(html) => {
-                    let js = format!(
-                        "document.getElementById('root').innerHTML = {};",
-                        serde_json::to_string(&html).unwrap()
-                    );
+                UserEvent::PatchRoot(json) => {
+                    let js = format!("patchRoot({});", json);
                     let _ = webview.evaluate_script(&js);
                 }
-                UserEvent::UpdateElement(id, html) => {
+                UserEvent::PatchElement(id, json) => {
                     let js = format!(
-                        "updateElementById({}, {});",
+                        "patchElementById({}, {});",
                         serde_json::to_string(&id).unwrap(),
-                        serde_json::to_string(&html).unwrap()
+                        json
                     );
                     let _ = webview.evaluate_script(&js);
                 }
@@ -695,10 +674,17 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
             }}));
         }}
 
-        function updateElementById(elementId, html) {{
+        function patchElementById(elementId, t) {{
             var el = document.getElementById(elementId);
             if (el) {{
-                el.outerHTML = html;
+                var expectedTag = getTagForType(t.element_type);
+                if (el.tagName === expectedTag) {{
+                    patchElement(el, t);
+                    patchChildren(el, t.children || []);
+                }} else {{
+                    var newEl = renderElement(t);
+                    el.replaceWith(newEl);
+                }}
             }} else {{
                 console.warn('Element not found: ' + elementId);
             }}
@@ -710,6 +696,253 @@ fn get_initial_html(content: Option<&str>, background_color: (u8, u8, u8, u8)) -
                 callback_id: callbackId,
                 value: String(value)
             }}));
+        }}
+
+        function buildStyleString(t) {{
+            var s = [];
+            if (t.size_full) {{ s.push('width: 100%'); s.push('height: 100%'); }}
+            if (t.width != null) s.push('width: ' + t.width + 'px');
+            if (t.height != null) s.push('height: ' + t.height + 'px');
+            if (t.min_width != null) s.push('min-width: ' + t.min_width + 'px');
+            if (t.max_width != null) s.push('max-width: ' + t.max_width + 'px');
+            if (t.min_height != null) s.push('min-height: ' + t.min_height + 'px');
+            if (t.max_height != null) s.push('max-height: ' + t.max_height + 'px');
+            if (t.flex_direction) s.push('display: flex; flex-direction: ' + t.flex_direction);
+            if (t.align_items) s.push('align-items: ' + t.align_items);
+            if (t.justify_content) s.push('justify-content: ' + t.justify_content);
+            if (t.gap != null) s.push('gap: ' + t.gap + 'px');
+            if (t.flex_wrap) s.push('flex-wrap: ' + t.flex_wrap);
+            if (t.flex_grow != null) s.push('flex-grow: ' + t.flex_grow);
+            if (t.flex_shrink != null) s.push('flex-shrink: ' + t.flex_shrink);
+            if (t.flex_basis) s.push('flex-basis: ' + t.flex_basis);
+            if (t.align_self) s.push('align-self: ' + t.align_self);
+            if (t.display_grid) s.push('display: grid');
+            if (t.grid_template_columns) s.push('grid-template-columns: ' + t.grid_template_columns);
+            if (t.grid_template_rows) s.push('grid-template-rows: ' + t.grid_template_rows);
+            if (t.grid_column) s.push('grid-column: ' + t.grid_column);
+            if (t.grid_row) s.push('grid-row: ' + t.grid_row);
+            if (t.place_items) s.push('place-items: ' + t.place_items);
+            if (t.padding != null) s.push('padding: ' + t.padding + 'px');
+            if (t.padding_top != null) s.push('padding-top: ' + t.padding_top + 'px');
+            if (t.padding_right != null) s.push('padding-right: ' + t.padding_right + 'px');
+            if (t.padding_bottom != null) s.push('padding-bottom: ' + t.padding_bottom + 'px');
+            if (t.padding_left != null) s.push('padding-left: ' + t.padding_left + 'px');
+            if (t.margin != null) s.push('margin: ' + t.margin + 'px');
+            if (t.margin_top != null) s.push('margin-top: ' + t.margin_top + 'px');
+            if (t.margin_right != null) s.push('margin-right: ' + t.margin_right + 'px');
+            if (t.margin_bottom != null) s.push('margin-bottom: ' + t.margin_bottom + 'px');
+            if (t.margin_left != null) s.push('margin-left: ' + t.margin_left + 'px');
+            if (t.background_color) s.push('background-color: ' + t.background_color);
+            if (t.text_color) s.push('color: ' + t.text_color);
+            if (t.border_radius != null) s.push('border-radius: ' + t.border_radius + 'px');
+            if (t.border_radius_top_left != null) s.push('border-top-left-radius: ' + t.border_radius_top_left + 'px');
+            if (t.border_radius_top_right != null) s.push('border-top-right-radius: ' + t.border_radius_top_right + 'px');
+            if (t.border_radius_bottom_right != null) s.push('border-bottom-right-radius: ' + t.border_radius_bottom_right + 'px');
+            if (t.border_radius_bottom_left != null) s.push('border-bottom-left-radius: ' + t.border_radius_bottom_left + 'px');
+            if (t.border_width != null && t.border_color) s.push('border: ' + t.border_width + 'px solid ' + t.border_color);
+            if (t.border_width_top != null) s.push('border-top: ' + t.border_width_top + 'px solid ' + (t.border_color_top || t.border_color || '#333'));
+            if (t.border_width_right != null) s.push('border-right: ' + t.border_width_right + 'px solid ' + (t.border_color_right || t.border_color || '#333'));
+            if (t.border_width_bottom != null) s.push('border-bottom: ' + t.border_width_bottom + 'px solid ' + (t.border_color_bottom || t.border_color || '#333'));
+            if (t.border_width_left != null) s.push('border-left: ' + t.border_width_left + 'px solid ' + (t.border_color_left || t.border_color || '#333'));
+            if (t.overflow) s.push('overflow: ' + t.overflow);
+            if (t.text_align) s.push('text-align: ' + t.text_align);
+            if (t.word_wrap) s.push('word-wrap: ' + t.word_wrap);
+            if (t.position) s.push('position: ' + t.position);
+            if (t.top != null) s.push('top: ' + t.top + 'px');
+            if (t.right != null) s.push('right: ' + t.right + 'px');
+            if (t.bottom != null) s.push('bottom: ' + t.bottom + 'px');
+            if (t.left != null) s.push('left: ' + t.left + 'px');
+            if (t.font_size != null) s.push('font-size: ' + t.font_size + 'px');
+            if (t.font_weight) s.push('font-weight: ' + t.font_weight);
+            if (t.transition) s.push('transition: ' + t.transition);
+            if (t.opacity != null) s.push('opacity: ' + t.opacity);
+            if (t.cursor) s.push('cursor: ' + t.cursor);
+            if (t.object_fit) s.push('object-fit: ' + t.object_fit);
+            if (t.style) s.push(t.style);
+            return s.join('; ');
+        }}
+
+        function buildStateStyles(t) {{
+            var id = t.user_id || t.id;
+            var css = '';
+            var hover = [];
+            var focus = [];
+            if (t.hover_bg) hover.push('background-color: ' + t.hover_bg + ' !important');
+            if (t.hover_text_color) hover.push('color: ' + t.hover_text_color + ' !important');
+            if (t.hover_border_color) hover.push('border-color: ' + t.hover_border_color + ' !important');
+            if (t.hover_opacity != null) hover.push('opacity: ' + t.hover_opacity + ' !important');
+            if (t.hover_scale != null) hover.push('transform: scale(' + t.hover_scale + ') !important');
+            if (t.focus_bg) focus.push('background-color: ' + t.focus_bg + ' !important');
+            if (t.focus_text_color) focus.push('color: ' + t.focus_text_color + ' !important');
+            if (t.focus_border_color) focus.push('border-color: ' + t.focus_border_color + ' !important');
+            if (hover.length) css += '#' + id + ':hover {{ ' + hover.join('; ') + ' }}';
+            if (focus.length) css += '#' + id + ':focus {{ ' + focus.join('; ') + ' }}';
+            return css;
+        }}
+
+        function getTagForType(type) {{
+            if (type === 'text') return 'SPAN';
+            if (type === 'button') return 'BUTTON';
+            if (type === 'image') return 'IMG';
+            if (type === 'input') return 'INPUT';
+            if (type === 'checkbox' || type === 'radio') return 'LABEL';
+            if (type === 'select') return 'SELECT';
+            return 'DIV';
+        }}
+
+        function patchAttrs(el, t) {{
+            if (t.user_id && el.id !== t.user_id) el.id = t.user_id;
+            if (t.class_names && t.class_names.length) {{
+                el.className = t.class_names.join(' ');
+            }} else if (el.className) {{
+                el.className = '';
+            }}
+        }}
+
+        function patchEvents(el, t) {{
+            if (t.on_click) {{
+                el.onclick = function() {{ handleClick(t.on_click); }};
+            }} else {{
+                el.onclick = null;
+            }}
+            if (t.on_mouse_enter) {{
+                el.onmouseenter = function() {{ handleMouseEvent(t.on_mouse_enter, 'mouse_enter'); }};
+            }} else {{
+                el.onmouseenter = null;
+            }}
+            if (t.on_mouse_leave) {{
+                el.onmouseleave = function() {{ handleMouseEvent(t.on_mouse_leave, 'mouse_leave'); }};
+            }} else {{
+                el.onmouseleave = null;
+            }}
+            if (t.on_mouse_down) {{
+                el.onmousedown = function() {{ handleMouseEvent(t.on_mouse_down, 'mouse_down'); }};
+            }} else {{
+                el.onmousedown = null;
+            }}
+            if (t.on_mouse_up) {{
+                el.onmouseup = function() {{ handleMouseEvent(t.on_mouse_up, 'mouse_up'); }};
+            }} else {{
+                el.onmouseup = null;
+            }}
+            if (t.on_input) {{
+                el.oninput = function() {{ handleInput(t.on_input, el.value); }};
+            }} else {{
+                el.oninput = null;
+            }}
+            if (t.on_change) {{
+                el.onchange = function() {{
+                    var val = el.type === 'checkbox' ? el.checked : el.value;
+                    handleChange(t.on_change, val);
+                }};
+            }} else {{
+                el.onchange = null;
+            }}
+        }}
+
+        function patchElement(el, t) {{
+            var hadFocus = document.activeElement === el;
+            patchAttrs(el, t);
+            var newStyle = buildStyleString(t);
+            if (el.style.cssText !== newStyle) {{
+                el.style.cssText = newStyle;
+            }}
+            patchEvents(el, t);
+            if (t.element_type === 'text' || t.element_type === 'button') {{
+                var txt = t.text_content || '';
+                if (el.textContent !== txt) el.textContent = txt;
+            }}
+            if (t.element_type === 'input') {{
+                if (t.placeholder && el.placeholder !== t.placeholder) el.placeholder = t.placeholder;
+                if (t.value !== undefined && el.value !== t.value && document.activeElement !== el) el.value = t.value || '';
+            }}
+            if (t.element_type === 'image') {{
+                var src = t.text_content || '';
+                if (el.src !== src) el.src = src;
+                if (t.alt && el.alt !== t.alt) el.alt = t.alt;
+            }}
+            if (hadFocus && document.activeElement !== el) el.focus();
+        }}
+
+        function patchChildren(parent, newChildren) {{
+            for (var i = 0; i < newChildren.length; i++) {{
+                var nc = newChildren[i];
+                var oldChild = parent.children[i];
+                var expectedTag = getTagForType(nc.element_type);
+                if (oldChild && oldChild.tagName === expectedTag) {{
+                    patchElement(oldChild, nc);
+                    patchChildren(oldChild, nc.children || []);
+                }} else if (oldChild) {{
+                    var newEl = renderElement(nc);
+                    if (oldChild.dataset.wryId) newEl.setAttribute('data-wry-id', oldChild.dataset.wryId);
+                    parent.replaceChild(newEl, oldChild);
+                }} else {{
+                    parent.appendChild(renderElement(nc));
+                }}
+            }}
+            while (parent.children.length > newChildren.length) {{
+                parent.removeChild(parent.lastChild);
+            }}
+        }}
+
+        function renderElement(t) {{
+            var tag = getTagForType(t.element_type);
+            var el = document.createElement(tag);
+            el.id = t.user_id || t.id;
+            el.setAttribute('data-wry-id', t.id);
+            el.style.cssText = buildStyleString(t);
+            if (t.class_names && t.class_names.length) el.className = t.class_names.join(' ');
+            patchEvents(el, t);
+            if (t.element_type === 'text' || t.element_type === 'button') {{
+                el.textContent = t.text_content || '';
+            }}
+            if (t.element_type === 'input') {{
+                el.type = 'text';
+                if (t.placeholder) el.placeholder = t.placeholder;
+                if (t.value) el.value = t.value;
+            }}
+            if (t.element_type === 'image') {{
+                el.src = t.text_content || '';
+                if (t.alt) el.alt = t.alt;
+            }}
+            var children = t.children || [];
+            for (var i = 0; i < children.length; i++) {{
+                el.appendChild(renderElement(children[i]));
+            }}
+            return el;
+        }}
+
+        function updateStateStyles(t) {{
+            var styleId = 'wry-state-styles';
+            var styleEl = document.getElementById(styleId);
+            if (!styleEl) {{
+                styleEl = document.createElement('style');
+                styleEl.id = styleId;
+                document.head.appendChild(styleEl);
+            }}
+            var css = '';
+            function collectStyles(node) {{
+                css += buildStateStyles(node);
+                var children = node.children || [];
+                for (var i = 0; i < children.length; i++) {{
+                    collectStyles(children[i]);
+                }}
+            }}
+            collectStyles(t);
+            if (styleEl.textContent !== css) styleEl.textContent = css;
+        }}
+
+        function patchRoot(t) {{
+            var rootEl = document.getElementById('root');
+            var existing = rootEl.querySelector('[data-wry-id="' + t.id + '"]') || rootEl.children[0];
+            if (!existing || existing.tagName !== getTagForType(t.element_type)) {{
+                rootEl.innerHTML = '';
+                rootEl.appendChild(renderElement(t));
+            }} else {{
+                patchElement(existing, t);
+                patchChildren(existing, t.children || []);
+            }}
+            updateStateStyles(t);
         }}
 
     </script>

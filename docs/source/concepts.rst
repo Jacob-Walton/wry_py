@@ -106,6 +106,20 @@ Rebuild and call ``set_root()``:
        root = div().child_builder(text(f"Value: {state}")).build()
        window.set_root(root)
 
+DOM Patching
+------------
+
+Elements are patched in place rather than replaced. This preserves CSS
+transition state so animations work smoothly across re-renders.
+
+Add transitions to see smooth updates:
+
+.. code-block:: python
+
+   text(f"Count: {count}")
+   .text_color(get_color())
+   .transition_colors(0.3)
+
 The Event Loop
 --------------
 

@@ -73,3 +73,6 @@ docs/_build/
 
 # Secrets
 .token
+
+# Additional .venv
+.venv3*

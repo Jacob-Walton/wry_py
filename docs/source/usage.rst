@@ -126,8 +126,9 @@ Image with hover scale:
 Partial Updates
 ---------------
 
-Instead of replacing the entire UI with ``set_root()``, you can update
-individual elements using ``id()`` and ``update_element()``:
+``set_root()`` uses DOM patching to update elements in place rather than
+replacing them. This preserves CSS transition state, so transitions animate
+smoothly across re-renders:
 
 .. code-block:: python
 
@@ -136,8 +137,20 @@ individual elements using ``id()`` and ``update_element()``:
    count = 0
    window = UiWindow(title="Counter", width=400, height=300)
 
+   def get_color():
+       if count > 0: return "#4ade80"
+       if count < 0: return "#f87171"
+       return "#ffffff"
+
    def make_counter():
-       return text(f"Count: {count}").id("counter").text_size(32).build()
+       return (
+           text(f"Count: {count}")
+           .id("counter")
+           .text_size(32)
+           .text_color(get_color())
+           .transition_colors(0.3)
+           .build()
+       )
 
    def increment():
        global count
@@ -159,7 +172,7 @@ individual elements using ``id()`` and ``update_element()``:
    window.set_root(root)
    window.run()
 
-This is more efficient when only a small part of the UI changes.
+For targeted updates, use ``update_element()`` with an element ID.
 
 Local images
 ------------

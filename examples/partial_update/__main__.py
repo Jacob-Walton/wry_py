@@ -1,7 +1,7 @@
-"""Partial update example.
+"""Partial update demo.
 
-Demonstrates using id() and update_element() to update only specific
-parts of the UI instead of replacing the entire root element.
+Uses update_element() to update specific elements by ID.
+Counter color transitions smoothly via DOM patching.
 """
 
 from typing import Callable
@@ -11,13 +11,23 @@ count = 0
 window = UiWindow(title="Partial Update", width=400, height=300)
 
 
+def get_counter_color():
+    """Return color based on count value."""
+    if count > 0:
+        return "#4ade80"  # green
+    elif count < 0:
+        return "#f87171"  # red
+    return "#ffffff"  # white
+
+
 def make_counter():
     """Build just the counter display element."""
     return (
         text(f"Count: {count}")
         .id("counter")
         .text_size(48)
-        .text_color("#fff")
+        .text_color(get_counter_color())
+        .transition_colors(0.3)
         .build()
     )
 
