@@ -90,7 +90,7 @@ fn percent_encode_path(p: &Path) -> String {
 }
 
 fn resolve_local_asset(path_str: &str) -> String {
-    // If it's already a fully-qualified URL, leave it as-is.
+    // Already a fully-qualified URL
     if path_str.starts_with("http://")
         || path_str.starts_with("https://")
         || path_str.starts_with("data:")
@@ -99,14 +99,14 @@ fn resolve_local_asset(path_str: &str) -> String {
         return path_str.to_string();
     }
 
-    // asset: prefix allows explicit lookup in AssetCatalog
+    // asset: prefix for explicit AssetCatalog lookup
     if let Some(name) = path_str.strip_prefix("asset:") {
         if let Some(uri) = assets::get_asset_data_uri(name) {
             return uri;
         }
     }
 
-    // If AssetCatalog has this asset by name or basename, return data URI
+    // Check AssetCatalog by name or basename
     if let Some(uri) = assets::get_asset_data_uri(path_str) {
         return uri;
     }
@@ -116,24 +116,23 @@ fn resolve_local_asset(path_str: &str) -> String {
         }
     }
 
-    // Fall back to canonicalizing on-disk paths and returning file:// URL
+    // Fall back to file:// URL
     match std::fs::canonicalize(path_str) {
         Ok(p) => percent_encode_path(&p),
         Err(_) => path_str.to_string(),
     }
 }
 
-// Rewrite occurrences of url(...) inside CSS to resolve local paths to file:// URLs.
+// Rewrite url(...) references inside CSS to resolve local paths
 fn rewrite_css_urls(css: &str) -> String {
     let mut out = String::with_capacity(css.len());
     let mut idx = 0usize;
     while let Some(pos) = css[idx..].find("url(") {
         let start = idx + pos;
         out.push_str(&css[idx..start]);
-        // find closing ')'
         if let Some(end_rel) = css[start..].find(')') {
             let end = start + end_rel;
-            let inner = &css[start + 4..end]; // between url( and )
+            let inner = &css[start + 4..end];
             let inner_trim = inner.trim().trim_matches(|c| c == '\'' || c == '"');
             let resolved = resolve_local_asset(inner_trim);
             out.push_str("url(\"");
@@ -141,7 +140,6 @@ fn rewrite_css_urls(css: &str) -> String {
             out.push_str("\")");
             idx = end + 1;
         } else {
-            // no closing paren - append rest and break
             out.push_str(&css[start..]);
             idx = css.len();
             break;
@@ -153,7 +151,7 @@ fn rewrite_css_urls(css: &str) -> String {
     out
 }
 
-// Build border-radius style considering per-corner values and fallback to uniform radius
+// Build border-radius considering per-corner values
 fn build_border_radius_style(el: &ElementDef) -> Option<String> {
     let tl = el.border_radius_top_left.or(el.border_radius);
     let tr = el.border_radius_top_right.or(el.border_radius);
@@ -163,7 +161,6 @@ fn build_border_radius_style(el: &ElementDef) -> Option<String> {
     if tl.is_none() && tr.is_none() && br.is_none() && bl.is_none() {
         None
     } else {
-        // Use 0.0 as fallback for unset corners
         let tl_v = tl.unwrap_or(0.0);
         let tr_v = tr.unwrap_or(tl_v);
         let br_v = br.unwrap_or(tl_v);
@@ -172,7 +169,7 @@ fn build_border_radius_style(el: &ElementDef) -> Option<String> {
     }
 }
 
-// Build border side styles when per-side widths/colors are present
+// Build per-side border styles
 fn build_border_sides_styles(el: &ElementDef) -> Vec<String> {
     let mut out = Vec::new();
 
@@ -228,7 +225,7 @@ fn render_element(el: &ElementDef) -> String {
         "checkbox" => render_checkbox(el),
         "radio" => render_radio(el),
         "select" => render_select(el),
-        _ => render_div(el), // div is default
+        _ => render_div(el),
     }
 }
 
@@ -237,7 +234,7 @@ fn get_element_id(el: &ElementDef) -> &str {
     el.user_id.as_deref().unwrap_or(&el.id)
 }
 
-/// Build data-id attribute for internal element tracking (needed for callbacks)
+/// Build data-id attribute for internal element tracking
 fn build_data_id_attr(el: &ElementDef) -> String {
     format!(" data-wry-id=\"{}\"", escape_html(&el.id))
 }
@@ -246,12 +243,10 @@ fn render_div(el: &ElementDef) -> String {
     let mut classes = Vec::new();
     let mut styles = Vec::new();
 
-    // Add user-specified class names first
     for class in &el.class_names {
         classes.push(class.as_str());
     }
 
-    // Layout classes
     if el.size_full {
         classes.push("size-full");
     }
@@ -277,7 +272,6 @@ fn render_div(el: &ElementDef) -> String {
         _ => {}
     }
 
-    // Grid layout
     if el.display_grid {
         styles.push("display: grid".to_string());
     }
@@ -297,7 +291,6 @@ fn render_div(el: &ElementDef) -> String {
         styles.push(format!("place-items: {}", pi));
     }
 
-    // Inline styles
     if let Some(w) = el.width {
         styles.push(format!("width: {}px", w));
     }
@@ -359,7 +352,7 @@ fn render_div(el: &ElementDef) -> String {
     if let Some(ref tc) = el.text_color {
         styles.push(format!("color: {}", tc));
     }
-    // Margin per-side overrides
+
     if let Some(mt) = el.margin_top {
         styles.push(format!("margin-top: {}px", mt));
     }
@@ -373,14 +366,12 @@ fn render_div(el: &ElementDef) -> String {
         styles.push(format!("margin-left: {}px", ml));
     }
 
-    // Border-radius: per-corner or uniform
     if let Some(br_style) = build_border_radius_style(el) {
         styles.push(br_style);
     } else if let Some(br) = el.border_radius {
         styles.push(format!("border-radius: {}px", br));
     }
 
-    // Border sides: prefer per-side, otherwise use uniform border if present
     let side_border_styles = build_border_sides_styles(el);
     if !side_border_styles.is_empty() {
         styles.extend(side_border_styles);
@@ -388,6 +379,7 @@ fn render_div(el: &ElementDef) -> String {
         let bc = el.border_color.as_deref().unwrap_or("#333");
         styles.push(format!("border: {}px solid {}", bw, bc));
     }
+
     if let Some(ref overflow) = el.overflow {
         styles.push(format!("overflow: {}", overflow));
     }
@@ -428,13 +420,11 @@ fn render_div(el: &ElementDef) -> String {
         styles.push(format!("cursor: {}", cursor));
     }
 
-    // Append any raw CSS provided via ElementDef.style (rewrite url(...) references)
     if let Some(ref raw) = el.style {
         let rewritten = rewrite_css_urls(raw);
         styles.push(escape_html(&rewritten));
     }
 
-    // Build attributes
     let class_attr = if classes.is_empty() {
         String::new()
     } else {
@@ -451,10 +441,7 @@ fn render_div(el: &ElementDef) -> String {
     let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
-    // Render children
     let children_html: String = el.children.iter().map(render_element).collect();
-
-    // Text content (if any)
     let text_content = el.text_content.as_ref().map(|t| escape_html(t)).unwrap_or_default();
 
     format!(
@@ -512,7 +499,16 @@ fn render_text(el: &ElementDef) -> String {
         format!(" class=\"{}\"", el.class_names.join(" "))
     };
 
-    format!("{}<span id=\"{}\"{}{}{}{}>{}</span>", state_styles, escape_html(get_element_id(el)), data_id_attr, class_attr, style_attr, event_attrs, text)
+    format!(
+        "{}<span id=\"{}\"{}{}{}{}>{}</span>",
+        state_styles,
+        escape_html(get_element_id(el)),
+        data_id_attr,
+        class_attr,
+        style_attr,
+        event_attrs,
+        text
+    )
 }
 
 fn render_button(el: &ElementDef) -> String {
@@ -524,6 +520,7 @@ fn render_button(el: &ElementDef) -> String {
         "background: #3b82f6".to_string(),
         "color: white".to_string(),
         "font-size: 14px".to_string(),
+        "outline: none".to_string(),
     ];
 
     if let Some(ref bg) = el.background_color {
@@ -550,20 +547,20 @@ fn render_button(el: &ElementDef) -> String {
         styles.push(format!("padding: {}px", p));
     }
 
-    // Per-side border styles for inputs: override default border
     let side_border_styles = build_border_sides_styles(el);
     if !side_border_styles.is_empty() {
         styles.retain(|s| !s.starts_with("border:"));
         styles.extend(side_border_styles);
-    }
-
-    // Per-side border styles override button defaults
-    let side_border_styles = build_border_sides_styles(el);
-    if !side_border_styles.is_empty() {
+    } else if let Some(bw) = el.border_width {
         styles.retain(|s| !s.starts_with("border:"));
-        styles.extend(side_border_styles);
+        let bc = el.border_color.as_deref().unwrap_or("#333");
+        styles.push(format!("border: {}px solid {}", bw, bc));
     }
 
+    if let Some(ref cursor) = el.cursor {
+        styles.retain(|s| !s.starts_with("cursor:"));
+        styles.push(format!("cursor: {}", cursor));
+    }
     if let Some(ref transition) = el.transition {
         styles.push(format!("transition: {}", transition));
     }
@@ -571,7 +568,6 @@ fn render_button(el: &ElementDef) -> String {
         styles.push(format!("opacity: {}", opacity));
     }
 
-    // Append any raw CSS provided via ElementDef.style (rewrite url(...) references)
     if let Some(ref raw) = el.style {
         let rewritten = rewrite_css_urls(raw);
         styles.push(escape_html(&rewritten));
@@ -610,13 +606,10 @@ fn render_image(el: &ElementDef) -> String {
     if let Some(h) = el.height {
         styles.push(format!("height: {}px", h));
     }
-    if let Some(br) = el.border_radius {
-        // prefer per-corner if present
-        if let Some(br_style) = build_border_radius_style(el) {
-            styles.push(br_style);
-        } else {
-            styles.push(format!("border-radius: {}px", br));
-        }
+    if let Some(br_style) = build_border_radius_style(el) {
+        styles.push(br_style);
+    } else if let Some(br) = el.border_radius {
+        styles.push(format!("border-radius: {}px", br));
     }
     if let Some(ref of) = el.object_fit {
         styles.push(format!("object-fit: {}", of));
@@ -631,10 +624,8 @@ fn render_image(el: &ElementDef) -> String {
         styles.push(format!("cursor: {}", cursor));
     }
 
-    // Per-side border styles for images
     let side_border_styles = build_border_sides_styles(el);
     if !side_border_styles.is_empty() {
-        // remove any generic border style if present
         styles.retain(|s| !s.starts_with("border:"));
         styles.extend(side_border_styles);
     }
@@ -648,9 +639,7 @@ fn render_image(el: &ElementDef) -> String {
     let event_attrs = build_event_attrs(el);
     let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
-    // Resolve image src: if it's not an http(s)/data/file URL, try to
-    // interpret it as a local path and convert to a file:// URL so the
-    // webview can load local assets by relative path.
+
     let raw_src = el.text_content.as_ref().map(|t| t.as_str()).unwrap_or("");
     let resolved_src = resolve_local_asset(raw_src);
     let src = escape_html(&resolved_src);
@@ -702,18 +691,30 @@ fn render_input(el: &ElementDef) -> String {
         styles.retain(|s| !s.starts_with("color:"));
         styles.push(format!("color: {}", tc));
     }
-    if let Some(br) = el.border_radius {
-        if let Some(br_style) = build_border_radius_style(el) {
-            styles.retain(|s| !s.starts_with("border-radius:"));
-            styles.push(br_style);
-        } else {
-            styles.retain(|s| !s.starts_with("border-radius:"));
-            styles.push(format!("border-radius: {}px", br));
-        }
+    if let Some(br_style) = build_border_radius_style(el) {
+        styles.retain(|s| !s.starts_with("border-radius:"));
+        styles.push(br_style);
+    } else if let Some(br) = el.border_radius {
+        styles.retain(|s| !s.starts_with("border-radius:"));
+        styles.push(format!("border-radius: {}px", br));
     }
     if let Some(p) = el.padding {
         styles.retain(|s| !s.starts_with("padding:"));
         styles.push(format!("padding: {}px", p));
+    }
+
+    let side_border_styles = build_border_sides_styles(el);
+    if !side_border_styles.is_empty() {
+        styles.retain(|s| !s.starts_with("border:"));
+        styles.extend(side_border_styles);
+    } else if let Some(bw) = el.border_width {
+        styles.retain(|s| !s.starts_with("border:"));
+        let bc = el.border_color.as_deref().unwrap_or("#555");
+        styles.push(format!("border: {}px solid {}", bw, bc));
+    }
+
+    if let Some(ref cursor) = el.cursor {
+        styles.push(format!("cursor: {}", cursor));
     }
     if let Some(ref transition) = el.transition {
         styles.push(format!("transition: {}", transition));
@@ -782,19 +783,21 @@ fn render_checkbox(el: &ElementDef) -> String {
         format!(" class=\"{}\"", el.class_names.join(" "))
     };
 
-    // Build input styles for dark mode visibility
     let accent_color = el.background_color.as_deref().unwrap_or("#3b82f6");
+    let cursor_style = el.cursor.as_deref().unwrap_or("pointer");
     let input_style = format!(
-        "width: 18px; height: 18px; accent-color: {}; cursor: pointer",
-        accent_color
+        "width: 18px; height: 18px; accent-color: {}; cursor: {}",
+        accent_color,
+        cursor_style
     );
 
     format!(
-        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: pointer\"{}><input type=\"checkbox\" style=\"{}\"{}{}/>{}</label>",
+        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: {}\"{}><input type=\"checkbox\" style=\"{}\"{}{}/>{}</label>",
         state_styles,
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
+        cursor_style,
         event_attrs,
         input_style,
         checked_attr,
@@ -834,19 +837,21 @@ fn render_radio(el: &ElementDef) -> String {
         format!(" class=\"{}\"", el.class_names.join(" "))
     };
 
-    // Build input styles for dark mode visibility
     let accent_color = el.background_color.as_deref().unwrap_or("#3b82f6");
+    let cursor_style = el.cursor.as_deref().unwrap_or("pointer");
     let input_style = format!(
-        "width: 18px; height: 18px; accent-color: {}; cursor: pointer",
-        accent_color
+        "width: 18px; height: 18px; accent-color: {}; cursor: {}",
+        accent_color,
+        cursor_style
     );
 
     format!(
-        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: pointer\"{}><input type=\"radio\" style=\"{}\"{}{}{}{}/>{}</label>",
+        "{}<label id=\"{}\"{}{}style=\"display: flex; align-items: center; cursor: {}\"{}><input type=\"radio\" style=\"{}\"{}{}{}{}/>{}</label>",
         state_styles,
         escape_html(get_element_id(el)),
         data_id_attr,
         class_attr,
+        cursor_style,
         event_attrs,
         input_style,
         name_attr,
@@ -862,6 +867,7 @@ fn render_select(el: &ElementDef) -> String {
         "padding: 8px 12px".to_string(),
         "font-size: 14px".to_string(),
         "cursor: pointer".to_string(),
+        "outline: none".to_string(),
     ];
 
     if let Some(w) = el.width {
@@ -879,14 +885,18 @@ fn render_select(el: &ElementDef) -> String {
         styles.retain(|s| !s.starts_with("border-radius:"));
         styles.push(format!("border-radius: {}px", br));
     }
-    if let (Some(bw), Some(bc)) = (el.border_width, &el.border_color) {
+    if let Some(bw) = el.border_width {
+        let bc = el.border_color.as_deref().unwrap_or("#333");
         styles.push(format!("border: {}px solid {}", bw, bc));
+    }
+    if let Some(ref cursor) = el.cursor {
+        styles.retain(|s| !s.starts_with("cursor:"));
+        styles.push(format!("cursor: {}", cursor));
     }
     if let Some(ref transition) = el.transition {
         styles.push(format!("transition: {}", transition));
     }
 
-    // Append raw CSS if provided
     if let Some(ref raw) = el.style {
         styles.push(raw.clone());
     }
@@ -903,7 +913,6 @@ fn render_select(el: &ElementDef) -> String {
     let state_styles = build_state_styles(el);
     let data_id_attr = build_data_id_attr(el);
 
-    // Build options HTML
     let options_html: String = el.options.iter().map(|opt| {
         let selected = el.selected.as_ref().map(|s| s == &opt.value).unwrap_or(false);
         let selected_attr = if selected { " selected" } else { "" };

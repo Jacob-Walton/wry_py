@@ -3,6 +3,7 @@
 ## High Priority
 
 - [ ] Styles not applied to `select()` elements.
+- [ ] Move away from `maturin upload/publish` and use `uv publish` instead.
 
 ## Medium Priority
 
