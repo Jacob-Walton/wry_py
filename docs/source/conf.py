@@ -9,7 +9,7 @@
 project = "Wry Py"
 copyright = "2025, Jacob Walton"
 author = "Jacob Walton"
-release = "0.2.1"
+release = "0.2.2"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
